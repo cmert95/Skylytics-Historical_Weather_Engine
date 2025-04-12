@@ -1,0 +1,17 @@
+data/*
+!data/.gitkeep
+
+logs/*
+!logs/.gitkeep
+
+config/*
+!config/.gitkeep
+
+*.log
+*.json
+*.csv
+.env
+mvenv_project/
+__pycache__/
+*.pyc
+config/location.json
