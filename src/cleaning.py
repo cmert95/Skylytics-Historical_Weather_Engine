@@ -85,22 +85,28 @@ def clean_data(raw_data, city, postal):
         # Parse datetime
         df["DateTime"] = pd.to_datetime(df["DateTime"])
 
+        # Clean condition labels
+        df["Condition"] = df["Condition"].str.strip().str.title()
+
         # Add city and postal code
         df["City"] = city
         df["PostalCode"] = postal
 
-        # Drop any remaining missing values
-        df.dropna(inplace=True)
+        # Drop unrealistic temperature values
+        df = df[(df["Temperature_C"] <= 60) & (df["Temperature_C"] >= -30)]
 
-        # 1 Interpolate half-hourly values using full hourly data
+        # Resample data to 30-minute intervals
         df.set_index("DateTime", inplace=True)
         df = df.resample("30min").asfreq()
 
-        # 2 Filling columns
+        # Filling numeric columns
         num_cols = df.select_dtypes(include="number").columns
         df[num_cols] = df[num_cols].interpolate(method="linear")
         df[num_cols] = df[num_cols].round(1)
-        df.ffill(inplace=True)
+
+        # Filling non-numeric columns
+        non_num_cols = df.select_dtypes(exclude="number").columns
+        df[non_num_cols] = df[non_num_cols].ffill()
 
         df.reset_index(inplace=True)
         logging.info("Forecast data cleaned and interpolated successfully.")
