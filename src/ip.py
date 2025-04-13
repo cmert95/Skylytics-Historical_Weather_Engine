@@ -1,7 +1,6 @@
 import requests
 import json
 import logging
-import os
 
 logging.basicConfig(
     filename="logs/ip_logs.log",

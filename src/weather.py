@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 
 
-#  Retrieves the API key from environment variables (set in Jenkins)
+#  Retrieves the API key from environment variables
 def get_api_key():
     load_dotenv()
 
