@@ -97,7 +97,8 @@ def clean_data(raw_data, city, postal):
 
         # Resample data to 30-minute intervals
         df.set_index("DateTime", inplace=True)
-        df = df.resample("30min").asfreq()
+        interval = os.getenv("INTERVAL", "30min")
+        df = df.resample(interval).asfreq()
 
         # Filling numeric columns
         num_cols = df.select_dtypes(include="number").columns

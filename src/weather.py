@@ -3,7 +3,8 @@ import os
 import json
 import logging
 from datetime import datetime
-from dotenv import load_dotenv
+
+# from dotenv import load_dotenv
 
 logging.basicConfig(
     filename="logs/weather_logs.log",
@@ -14,8 +15,7 @@ logging.basicConfig(
 
 #  Retrieves the API key from environment variables
 def get_api_key():
-    load_dotenv()
-
+    # load_dotenv(dotenv_path="/app/.env")
     api_key = os.getenv("API_KEY")
     if api_key:
         logging.info("API key successfully retrieved.")
