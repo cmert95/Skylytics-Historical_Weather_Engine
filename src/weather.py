@@ -3,6 +3,7 @@ import os
 import json
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 logging.basicConfig(
@@ -15,7 +16,6 @@ logging.basicConfig(
 #  Retrieves the API key from environment variables
 def get_api_key():
     load_dotenv()
-
     api_key = os.getenv("API_KEY")
     if api_key:
         logging.info("API key successfully retrieved.")
@@ -47,10 +47,10 @@ def get_infos_from_json(filename="config/location.json"):
 def get_forecast(city, api_key):
     base_url = "http://api.weatherapi.com/v1/forecast.json"
     params = {
-        "key": api_key, 
-        "q": city, 
-        "days": 7, 
-        "aqi": "no", 
+        "key": api_key,
+        "q": city,
+        "days": 7,
+        "aqi": "no",
         "alerts": "no"
     }
 # fmt: on
@@ -63,6 +63,7 @@ def get_forecast(city, api_key):
     except requests.exceptions.RequestException as e:
         logging.error(f"Weather API request failed: {e}")
         return None
+
 
 # Main function to coordinate the workflow and save the file.
 def save_forecast_to_json():
@@ -80,12 +81,14 @@ def save_forecast_to_json():
     forecast_data = get_forecast(city, api_key)
 
     if forecast_data:
-        file_name = f"data/raw/raw_weather_{datetime.now().strftime('%d%m%Y')}.json"
+        local_now = datetime.now(ZoneInfo("Europe/Berlin"))
+        file_name = f"data/raw/raw_weather_{local_now.strftime('%d%m%Y')}.json"
         with open(file_name, "w") as f:
             json.dump(forecast_data, f)
         logging.info(f"Forecast data saved successfully (JSON): {file_name}")
     else:
         logging.error("Forecast data could not be retrieved.")
+
 
 if __name__ == "__main__":
     save_forecast_to_json()

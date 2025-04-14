@@ -1,0 +1,49 @@
+# Each service corresponds to a step in the ETL pipeline:
+# - ip-service: gets location info (city and postal code)
+# - weather-service: fetches weather data from WeatherAPI
+# - cleaning-service: processes and cleans the weather data
+# - test: runs unit tests with pytest to validate key modules
+
+services:
+  ip:
+    build: .
+    container_name: ip-service
+    command: python src/ip.py
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+
+  weather:
+    build: .
+    container_name: weather-service
+    command: python src/weather.py
+    env_file:
+      - .env
+    volumes:
+      - ./data/raw:/app/data/raw
+      - ./data/cleaned:/app/data/cleaned
+      - ./logs:/app/logs
+      - ./config:/app/config
+      - ./.env:/app/.env
+
+  cleaning:
+    build: .
+    container_name: cleaning-service
+    command: python src/cleaning.py
+    environment:
+      - INTERVAL=${INTERVAL}
+    volumes:
+      - ./data/raw:/app/data/raw
+      - ./data/cleaned:/app/data/cleaned
+      - ./logs:/app/logs
+      - ./config:/app/config
+
+  test:
+    build: .
+    container_name: test-service
+    command: bash -c "PYTHONPATH=. pytest tests/"
+    working_dir: /app
+    env_file:
+      - .env
+    volumes:
+      - .:/app

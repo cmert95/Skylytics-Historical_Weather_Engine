@@ -3,6 +3,7 @@ import logging
 import glob
 import os
 import json
+from zoneinfo import ZoneInfo
 from datetime import datetime
 
 logging.basicConfig(
@@ -97,7 +98,8 @@ def clean_data(raw_data, city, postal):
 
         # Resample data to 30-minute intervals
         df.set_index("DateTime", inplace=True)
-        df = df.resample("30min").asfreq()
+        interval = os.getenv("INTERVAL", "30min")
+        df = df.resample(interval).asfreq()
 
         # Filling numeric columns
         num_cols = df.select_dtypes(include="number").columns
@@ -120,7 +122,8 @@ def clean_data(raw_data, city, postal):
 # Save cleaned data to CSV and Parquet
 def save_cleaned_data(df):
     try:
-        timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+        local_now = datetime.now(ZoneInfo("Europe/Berlin"))
+        timestamp = local_now.strftime("%d%m%Y_%H%M%S")
         csv_path = f"data/cleaned/cleaned_weather_{timestamp}.csv"
         parquet_path = f"data/cleaned/cleaned_weather_{timestamp}.parquet"
 

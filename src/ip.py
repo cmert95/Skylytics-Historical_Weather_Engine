@@ -14,7 +14,7 @@ def get_ip_info():
     url = "https://ipinfo.io/json"
     try:
         logging.info("Sending request to IPinfo API.")
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
 

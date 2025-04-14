@@ -15,3 +15,6 @@ mvenv_project/
 __pycache__/
 *.pyc
 config/location.json
+
+.coverage
+htmlcov/
