@@ -2,6 +2,7 @@
 # - ip-service: gets location info (city and postal code)
 # - weather-service: fetches weather data from WeatherAPI
 # - cleaning-service: processes and cleans the weather data
+# - test: runs unit tests with pytest to validate key modules
 
 services:
   ip:
@@ -36,3 +37,13 @@ services:
       - ./data/cleaned:/app/data/cleaned
       - ./logs:/app/logs
       - ./config:/app/config
+
+  test:
+    build: .
+    container_name: test-service
+    command: bash -c "PYTHONPATH=. pytest tests/"
+    working_dir: /app
+    env_file:
+      - .env
+    volumes:
+      - .:/app

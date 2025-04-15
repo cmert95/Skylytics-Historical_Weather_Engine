@@ -1,50 +1,75 @@
 # ⛈️ Weather Forecast Data Pipeline
 
-This is a CI-enabled ETL pipeline that automatically collects and processes weather forecast data based on the user's IP location. It uses Docker and Jenkins to run containerized steps on a daily schedule, with customizable time intervals. The system is fully modular and designed for automation, observability, and future scalability.
+This is a modular and automated ETL pipeline designed to collect, clean, and store weather forecast data based on the user's IP location. The system is built with Dockerized steps and is fully integrated into a Jenkins CI workflow, including unit testing, test coverage tracking, and ready for future improvements.
 
 ## Project Overview
 
-The project follows a 3-step structure:
+### 🧩 1. Modular Scripts
+Each step of the ETL process — IP detection, weather fetch, and data cleaning — is handled by a dedicated Python script for clarity and maintainability.
 
-1. **Location Detection (`ip.py`)**  
+### 🐳 2. Dockerized Execution
+All components, including tests, run in isolated Docker containers managed with Docker Compose.
 
-2. **Weather Data Retrieval (`weather.py`)**  
+### ⚙️ 3. Jenkins CI Pipeline
+A Jenkins pipeline automates the workflow with scheduled execution, test runs, and coverage tracking.
 
-3. **Data Cleaning (`cleaning.py`)**  
-   Cleans and interpolates the data to desired time intervals (e.g., 15min, 30min), adds location metadata, and outputs `.csv` and `.parquet` files.
+### 🌐 4. GitHub Integration
+CI can be triggered via GitHub pushes (via manual trigger or webhook). The project follows Git best practices and supports feature-based branching.
+
+### 📦 5. Clean Outputs
+Processed weather data is saved in both `.csv` and `.parquet` formats — ready for analysis or visualization tools.
 
 ## Technologies Used
 
-- **Python**: `requests`, `pandas`, `dotenv`, `logging`
-- **Docker**: Containerization of each ETL step
-- **Docker Compose**: For running all steps as separate services
-- **Jenkins**: For automating the pipeline via a `Jenkinsfile`
-- **GitHub**: Code and CI/CD integration
-- **APIs**: Source of raw data
+- **Python**: `requests`, `pandas`, `pytest`, `logging`
+- **Docker**: Containerization of each ETL and testing step
+- **Docker Compose**: For all services and test environments
+- **Jenkins**: CI pipeline with daily schedule, test runner, logging, and coverage
+- **GitHub**: Version control and CI integration with Jenkins
+- **Pre-commit**: `black`, `flake8`, and formatting tools for cleaner commits
+- **pytest + coverage**: Unit + edge-case testing with real-time coverage stats
+- **APIs**: IP and weather data source
 
-###  Planned or In Progress
 
-- **Power-BI** or **Tableau** 
+## ✅ Test Coverage
 
-## Running Locally
+![coverage](https://img.shields.io/badge/coverage-75%25-brightgreen)
+- Coverage is calculated using `pytest-cov`
+- Results are logged both locally and inside Jenkins
+
+---
+
+## Running Locally (ETL + Tests)
 
 ```bash
-# Run each ETL step
-docker compose run ip
-docker compose run weather
-docker compose run -e INTERVAL=15min cleaning
+# Step-by-step ETL
+docker compose run --rm ip
+docker compose run --rm weather
+docker compose run --rm -e INTERVAL=30min cleaning
+
+# Run all tests with coverage
+docker compose run --rm test
 ```
 
 > 📝 Make sure `.env` file exists with your `API_KEY`.
 
-## Jenkins Integration
+## Jenkins Pipeline
 
-This project includes a `Jenkinsfile` that:
+The `Jenkinsfile` includes:
 
-- Runs each ETL step as a Docker Compose service
-- Supports dynamic `INTERVAL` parameter
-- Displays build info & workspace logs
-- Runs daily at 08:30 AM on weekdays
+- Cleanup of old logs and data
+- Environment file checks
+- Full ETL pipeline run
+- Unit tests with coverage
+- Dynamic parameter injection (e.g., INTERVAL)
+- Daily 08:30 AM run (Mon–Fri)
+
+---
+
+### 🗺️  Planned or In Progress
+
+1. **CD (Continuous Delivery)** to a database or cloud destination
+2. **Power BI** or **Tableau** dashboards
 
 ---
 I built this project to show how I like to build things.

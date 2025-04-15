@@ -2,30 +2,30 @@
 
 pipeline {
     agent any
-    
+
     // Select resampling interval (used in cleaning step)
     parameters {
         choice(
             name: "INTERVAL",
             choices: ["30min", "20min", "15min", "10min"],
-            description: 'Resampling interval for the cleaned forecast data'
+            description: "Resampling interval for the cleaned forecast data"
         )
     }
 
     // Run the pipeline every weekday at 08:30 (Mon–Fri only)
     triggers {
-        cron('30 8 * * 1-5')
+        cron("30 8 * * 1-5")
     }
 
     // Keep last 10 builds and add timestamps to logs
     options {
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        buildDiscarder(logRotator(numToKeepStr: "10"))
         timestamps()
     }
 
     stages {
         // Clean old data
-        stage('Clean Old Data') {
+        stage("Clean Old Data") {
             steps {
                 sh '''
                     echo "🧹 Cleaning old data..."
@@ -38,14 +38,14 @@ pipeline {
             }
         }
         //Check APIKEY
-        stage('Check API Key') {
+        stage("Check API Key") {
             steps {
                 sh 'cat .env || echo ".env not found!"'
             }
         }
 
         // Check the file structure before running the pipeline
-        stage('Initial File Check') {
+        stage("Initial File Check") {
             steps {
                 sh '''
                     echo "File structure BEFORE pipeline"
@@ -56,8 +56,28 @@ pipeline {
             }
         }
 
+        // Pytest
+        stage("Run Pytest") {
+            steps {
+                sh '''
+                    echo "Running unit tests with pytest inside Docker..."
+                    docker compose run --rm test
+                '''
+            }
+        }
+
+        // Test coverage test
+        stage('Run Coverage Tests') {
+            steps {
+                sh '''
+                echo "📊 Running tests with coverage..."
+                docker compose run --rm test pytest --cov=src --cov-report=term-missing
+                '''
+            }
+        }
+
         // Step 1
-        stage('Step 1: Get IP Info') {
+        stage("Step 1: Get IP Info") {
             steps {
                 sh '''
                     cd $WORKSPACE
@@ -67,7 +87,7 @@ pipeline {
         }
 
         // Step 2
-        stage('Step 2: Fetch Weather Data') {
+        stage("Step 2: Fetch Weather Data") {
             steps {
                 sh '''
                     cd $WORKSPACE
@@ -77,7 +97,7 @@ pipeline {
         }
 
         // Step 3
-        stage('Step 3: Clean Forecast Data') {
+        stage("Step 3: Clean Forecast Data") {
             steps {
                 sh '''
                     cd $WORKSPACE
@@ -87,7 +107,7 @@ pipeline {
         }
 
         // Check the file structure after the pipeline
-        stage('Final File Check') {
+        stage("Final File Check") {
             steps {
                 sh '''
                     echo "File structure AFTER pipeline"
@@ -99,7 +119,7 @@ pipeline {
         }
 
         // Basic build metadata
-        stage('Build Info') {
+        stage("Build Info") {
             steps {
                 sh '''
                     echo "Job Name     : $JOB_NAME"
@@ -117,10 +137,10 @@ pipeline {
     // Messages
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo 'Pipeline failed.'
+            echo "Pipeline failed."
         }
     }
 }
