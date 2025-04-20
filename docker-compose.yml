@@ -41,7 +41,7 @@ services:
   test:
     build: .
     container_name: test-service
-    command: bash -c "PYTHONPATH=. pytest tests/"
+    command: bash -c "PYTHONPATH=. pytest --cov=src --cov-report=term-missing"
     working_dir: /app
     env_file:
       - .env

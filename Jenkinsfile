@@ -37,6 +37,17 @@ pipeline {
                 '''
             }
         }
+
+        // Build fresh Docker image
+        stage("Build Test Container Image") {
+            steps {
+                sh '''
+                    echo "🔧 Building test image..."
+                    docker compose build test
+                '''
+            }
+        }
+
         //Check APIKEY
         stage("Check API Key") {
             steps {
@@ -60,18 +71,8 @@ pipeline {
         stage("Run Pytest") {
             steps {
                 sh '''
-                    echo "Running unit tests with pytest inside Docker..."
+                    echo "Running unit tests with pytest..."
                     docker compose run --rm test
-                '''
-            }
-        }
-
-        // Test coverage test
-        stage('Run Coverage Tests') {
-            steps {
-                sh '''
-                echo "📊 Running tests with coverage..."
-                docker compose run --rm test pytest --cov=src --cov-report=term-missing
                 '''
             }
         }
@@ -80,7 +81,6 @@ pipeline {
         stage("Step 1: Get IP Info") {
             steps {
                 sh '''
-                    cd $WORKSPACE
                     docker compose run ip
                 '''
             }
@@ -90,7 +90,6 @@ pipeline {
         stage("Step 2: Fetch Weather Data") {
             steps {
                 sh '''
-                    cd $WORKSPACE
                     docker compose run weather
                 '''
             }
@@ -100,7 +99,6 @@ pipeline {
         stage("Step 3: Clean Forecast Data") {
             steps {
                 sh '''
-                    cd $WORKSPACE
                     docker compose run cleaning
                 '''
             }
@@ -138,6 +136,7 @@ pipeline {
     post {
         success {
             echo "Pipeline completed successfully!"
+            archiveArtifacts artifacts: 'data/**/*, logs/**/*', allowEmptyArchive: true
         }
         failure {
             echo "Pipeline failed."
