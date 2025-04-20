@@ -1,5 +1,6 @@
-from src import weather
 import json
+
+from src import weather
 
 
 # Check that API key is retrieved from environment
