@@ -1,5 +1,6 @@
-from src import cleaning
 import pandas as pd
+
+from src import cleaning
 
 
 # Tests if cleaning function works properly
@@ -47,22 +48,18 @@ def test_load_raw_data_invalid(tmp_path):
 def test_find_latest_file(tmp_path, monkeypatch):
     from src import cleaning
 
-    # Dummy dosyalar
     f1 = tmp_path / "raw_weather_1.json"
     f2 = tmp_path / "raw_weather_2.json"
     f1.write_text("{}")
     f2.write_text("{}")
 
-    # Patch glob.glob → sadece bu 2 dosyayı döndürsün
-    monkeypatch.setattr("glob.glob", lambda pattern: [str(f1), str(f2)])
-
-    # f2 daha yeni olsun diye burada f2 > f1 yapıyoruz
     def fake_getctime(path):
         return 100 if "2" in path else 50
 
     monkeypatch.setattr("os.path.getctime", fake_getctime)
 
-    latest = cleaning.find_latest_file()
+    latest = cleaning.find_latest_file(path=str(tmp_path))
+
     assert latest.endswith("raw_weather_2.json")
 
 

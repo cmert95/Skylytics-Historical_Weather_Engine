@@ -1,9 +1,12 @@
-import requests
-import os
 import json
 import logging
+import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+import requests
+
+TIMEZONE = ZoneInfo("Europe/Berlin")
 
 logging.basicConfig(
     filename="logs/weather_logs.log",
@@ -12,7 +15,7 @@ logging.basicConfig(
 )
 
 
-#  Retrieves the API key from environment variables
+# Retrieves the API key from environment variables
 def get_api_key():
     api_key = os.getenv("API_KEY")
     if api_key:
@@ -28,27 +31,31 @@ def get_infos_from_json(filename="config/location.json"):
     try:
         with open(filename, "r") as f:
             location = json.load(f)
-            city = location.get("city")
-            postal = location.get("postal")
-            if city and postal:
-                logging.info(f"Location retrieved: {city}, Postal: {postal}.")
-                return city, postal
-            else:
-                logging.error("City or postal information is missing in JSON.")
-                return None, None
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logging.error(f"Error reading location file: {e}")
         return None, None
 
+    city = location.get("city")
+    postal = location.get("postal")
+
+    if not city or not postal:
+        logging.error("City or postal information is missing in JSON.")
+        return None, None
+
+    logging.info(f"Location retrieved: {city}, Postal: {postal}.")
+    return city, postal
+
 
 # fmt: off
-# Makes a request to the weather API to retrieve 7-day forecast
+# Makes a request to the weather API to retrieve forecast
+# Free plan supports a maximum of 3 days forecast.
+# Forecast always starts from today.
 def get_forecast(city, api_key):
     base_url = "http://api.weatherapi.com/v1/forecast.json"
     params = {
         "key": api_key,
         "q": city,
-        "days": 7,
+        "days": 1,
         "aqi": "no",
         "alerts": "no"
     }
@@ -80,11 +87,14 @@ def save_forecast_to_json():
     forecast_data = get_forecast(city, api_key)
 
     if forecast_data:
-        local_now = datetime.now(ZoneInfo("Europe/Berlin"))
+        local_now = datetime.now(TIMEZONE)
         file_name = f"data/raw/raw_weather_{local_now.strftime('%d%m%Y')}.json"
-        with open(file_name, "w") as f:
-            json.dump(forecast_data, f)
-        logging.info(f"Forecast data saved successfully (JSON): {file_name}")
+        try:
+            with open(file_name, "w") as f:
+                json.dump(forecast_data, f)
+            logging.info(f"Forecast data saved successfully (JSON): {file_name}")
+        except Exception as e:
+            logging.error(f"Failed to save forecast data to {file_name}: {e}")
     else:
         logging.error("Forecast data could not be retrieved.")
 

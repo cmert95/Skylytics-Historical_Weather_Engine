@@ -1,6 +1,7 @@
-import requests
 import json
 import logging
+
+import requests
 
 logging.basicConfig(
     filename="logs/ip_logs.log",
@@ -35,15 +36,15 @@ def get_ip_info():
 
 # Saves the city name to a text file
 def save_location(location, filename="config/location.json"):
-    if location:
-        try:
+    try:
+        if location:
             with open(filename, "w") as f:
                 json.dump(location, f)
             logging.info(f"File saved successfully: {filename}.")
-        except Exception as e:
-            logging.error(f"Failed to save file to {filename}: {e}")
-    else:
-        logging.warning("No location information provided, nothing saved.")
+        else:
+            logging.warning("No location information provided, nothing saved.")
+    except Exception as e:
+        logging.error(f"Failed to save file to {filename}: {e}")
 
 
 if __name__ == "__main__":
