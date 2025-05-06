@@ -17,9 +17,7 @@ logging.basicConfig(
 # Find the most recent raw json file
 def find_latest_file(path="data/raw"):
     try:
-        latest_file = max(
-            glob.glob(os.path.join(path, "raw_weather_*.json")), key=os.path.getctime
-        )
+        latest_file = max(glob.glob(os.path.join(path, "raw_weather_*.json")), key=os.path.getctime)
     except ValueError:
         logging.error("No raw json files found.")
         return None
@@ -70,9 +68,7 @@ def clean_data(raw_data, city, postal):
         df = pd.json_normalize(records)
 
         # Rename columns
-        df = df[
-            ["time", "temp_c", "condition.text", "humidity", "wind_kph", "feelslike_c"]
-        ]
+        df = df[["time", "temp_c", "condition.text", "humidity", "wind_kph", "feelslike_c"]]
         df.columns = [
             "DateTime",
             "Temperature_C",
