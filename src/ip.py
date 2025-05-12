@@ -7,7 +7,7 @@ from src.logger import setup_logger
 logger = setup_logger(__name__, log_name="ip_logs")
 
 
-# Retrieves city and postal information based on the public IP address.
+# Retrieves city, postal and location information based on the public IP address.
 def get_ip_info():
     url = "https://ipinfo.io/json"
     logger.info("Sending request to IPinfo API.")
@@ -21,12 +21,23 @@ def get_ip_info():
 
     city = data.get("city")
     postal = data.get("postal")
+    loc = data.get("loc")
 
-    if city and postal:
-        logger.info(f"Request successful. City: {city}, Postal code: {postal}.")
-        return {"city": city, "postal": postal}
+    if city and postal and loc:
+        try:
+            lat_str, lon_str = loc.split(",")
+            latitude = float(lat_str.strip())
+            longitude = float(lon_str.strip())
+        except Exception as e:
+            logger.error(f"Failed to parse coordinates: {e}")
+            return None
+
+        logger.info(
+            f"Request successful. City: {city}, Postal code: {postal}, Lat: {latitude}, Lon: {longitude}."
+        )
+        return {"city": city, "postal": postal, "latitude": latitude, "longitude": longitude}
     else:
-        logger.warning("City or postal information could not be retrieved.")
+        logger.warning("Some location fields are missing in the response.")
         return None
 
 
