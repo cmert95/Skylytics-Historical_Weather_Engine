@@ -1,5 +1,7 @@
 import json
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -7,11 +9,11 @@ from src.logger import setup_logger
 
 logger = setup_logger(__name__, log_name="weather_openmeteo_logs")
 
+TIMEZONE = ZoneInfo("Europe/Berlin")
 RAW_DATA_DIR = Path("data/raw")
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# Load lat/lon from config
 def get_coordinates(filename=Path("config/location.json")):
     try:
         with open(filename, "r") as f:
@@ -27,7 +29,6 @@ def get_coordinates(filename=Path("config/location.json")):
         return None, None
 
 
-# Fetch historical data from Open-Meteo
 def get_weather_data(lat, lon, start_date, end_date):
     url = "https://archive-api.open-meteo.com/v1/archive"
     params = {
@@ -50,7 +51,6 @@ def get_weather_data(lat, lon, start_date, end_date):
         return None
 
 
-# Save to data/raw
 def save_to_file(data, filename):
     try:
         with open(filename, "w") as f:
@@ -74,7 +74,8 @@ def run():
         logger.error("No data fetched. Exiting.")
         return
 
-    filename = RAW_DATA_DIR / f"openmeteo_weather_{start_date}_to_{end_date}.json"
+    timestamp = datetime.now(TIMEZONE).strftime("%Y-%m-%d_%H-%M")
+    filename = RAW_DATA_DIR / f"openmeteo_weather_{timestamp}.json"
     save_to_file(data, filename)
 
 
