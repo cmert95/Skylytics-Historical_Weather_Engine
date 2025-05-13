@@ -1,103 +1,51 @@
 import json
-import logging
-import os
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from pathlib import Path
 
 import requests
 
-TIMEZONE = ZoneInfo("Europe/Berlin")
-
-logging.basicConfig(
-    filename="logs/weather_logs.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+RAW_DATA_DIR = Path("data/raw")
+RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# Retrieves the API key from environment variables
-def get_api_key():
-    api_key = os.getenv("API_KEY")
-    if api_key:
-        logging.info("API key successfully retrieved.")
-        return api_key
-    else:
-        logging.error("API key could not be retrieved.")
-        return None
+def get_coordinates(filename=Path("config/location.json")):
+    with open(filename, "r") as f:
+        location = json.load(f)
+    lat = location.get("latitude")
+    lon = location.get("longitude")
+    if lat is None or lon is None:
+        raise ValueError("Missing latitude or longitude in config file.")
+    return lat, lon
 
 
-# Reads the city name and postal code from a json file
-def get_infos_from_json(filename="config/location.json"):
-    try:
-        with open(filename, "r") as f:
-            location = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        logging.error(f"Error reading location file: {e}")
-        return None, None
-
-    city = location.get("city")
-    postal = location.get("postal")
-
-    if not city or not postal:
-        logging.error("City or postal information is missing in JSON.")
-        return None, None
-
-    logging.info(f"Location retrieved: {city}, Postal: {postal}.")
-    return city, postal
-
-
-# fmt: off
-# Makes a request to the weather API to retrieve forecast
-# Free plan supports a maximum of 3 days forecast.
-# Forecast always starts from today.
-def get_forecast(city, api_key):
-    base_url = "http://api.weatherapi.com/v1/forecast.json"
+def get_weather_data(lat, lon, start_date, end_date):
+    url = "https://archive-api.open-meteo.com/v1/archive"
     params = {
-        "key": api_key,
-        "q": city,
-        "days": 1,
-        "aqi": "no",
-        "alerts": "no"
+        "latitude": lat,
+        "longitude": lon,
+        "start_date": start_date,
+        "end_date": end_date,
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
+        "timezone": "Europe/Berlin",
     }
-# fmt: on
 
-    try:
-        logging.info(f"Requesting weather data for city: {city}")
-        response = requests.get(base_url, params=params, timeout=15)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Weather API request failed: {e}")
-        return None
+    response = requests.get(url, params=params, timeout=15)
+    response.raise_for_status()
+    return response.json()
 
 
-# Main function to coordinate the workflow and save the file.
-def save_forecast_to_json():
-    city, postal = get_infos_from_json()
-    api_key = get_api_key()
+def save_to_file(data, filename):
+    with open(filename, "w") as f:
+        json.dump(data, f, indent=2)
 
-    if not city or not postal:
-        logging.error("City or postal code is missing. Exiting process.")
-        return
 
-    if not api_key:
-        logging.error("API key is missing. Exiting process.")
-        return
-
-    forecast_data = get_forecast(city, api_key)
-
-    if forecast_data:
-        local_now = datetime.now(TIMEZONE)
-        file_name = f"data/raw/raw_weather_{local_now.strftime('%d%m%Y')}.json"
-        try:
-            with open(file_name, "w") as f:
-                json.dump(forecast_data, f)
-            logging.info(f"Forecast data saved successfully (JSON): {file_name}")
-        except Exception as e:
-            logging.error(f"Failed to save forecast data to {file_name}: {e}")
-    else:
-        logging.error("Forecast data could not be retrieved.")
+def run():
+    lat, lon = get_coordinates()
+    start_date = "2024-04-01"
+    end_date = "2024-04-10"
+    data = get_weather_data(lat, lon, start_date, end_date)
+    filename = RAW_DATA_DIR / f"openmeteo_weather_{start_date}_to_{end_date}.json"
+    save_to_file(data, filename)
 
 
 if __name__ == "__main__":
-    save_forecast_to_json()
+    run()
