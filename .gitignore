@@ -1,3 +1,17 @@
+__pycache__/
+.ruff_cache/
+*.pyc
+*.pyd
+*.env
+.env
+
+venv/
+.venv/
+ENV/
+env/
+
+.vscode/
+
 data/*
 !data/.gitkeep
 
@@ -6,15 +20,6 @@ logs/*
 
 config/*
 !config/.gitkeep
-
-*.log
-*.json
-*.csv
-.env
-mvenv_project/
-__pycache__/
-*.pyc
-config/location.json
 
 .coverage
 htmlcov/
