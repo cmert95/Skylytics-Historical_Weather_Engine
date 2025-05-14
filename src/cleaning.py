@@ -8,6 +8,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 RAW_DATA_DIR = Path("data/raw")
+CONFIG_PATH = Path("config/location.json")
+TIMEZONE = ZoneInfo("Europe/Berlin")
 
 logging.basicConfig(
     filename="logs/cleaning_logs.log",
@@ -27,34 +29,43 @@ def get_latest_raw_file(directory):
     return latest
 
 
-# Load city and postal info from JSON
-def get_location_info(filename="config/location.json"):
-    try:
-        with open(filename, "r") as f:
-            location = json.load(f)
-        city = location["city"]
-        postal = location["postal"]
-    except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
-        logging.error(f"Error reading location info: {e}")
+def load_location_info(filepath):
+    if not filepath.exists():
+        logging.error(f"Config file not found: {filepath}")
         return None, None
-    else:
-        logging.info(f"Location info retrieved: {city}, {postal}")
-        return city, postal
 
-
-# Load raw JSON weather data
-def load_raw_data(file_path):
     try:
-        with open(file_path, "r") as f:
-            raw_data = json.load(f)
-        logging.info(f"Raw data loaded from: {file_path}")
-        return raw_data
-    except Exception as e:
-        logging.error(f"Error loading raw data from {file_path}: {e}")
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        logging.error(f"Invalid JSON in config file: {e}")
+        return None, None
+
+    city = data.get("city")
+    postal = data.get("postal")
+    if not city or not postal:
+        logging.error("Missing 'city' or 'postal' in location config.")
+        return None, None
+
+    logging.info(f"Location info retrieved: {city}, {postal}")
+    return city, postal
+
+
+def load_raw_weather(filepath):
+    if not filepath.exists():
+        logging.error(f"Raw data file does not exist: {filepath}")
+        return None
+
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        logging.info(f"Loaded raw data from: {filepath}")
+        return data
+    except json.JSONDecodeError as e:
+        logging.error(f"Failed to parse raw JSON: {e}")
         return None
 
 
-# Clean and format raw weather data with interpolated half-hour values
 def clean_data(raw_data, city, postal):
     try:
         # Flatten hourly forecast
@@ -134,6 +145,14 @@ def save_cleaned_data(df):
 def main():
     raw_file = get_latest_raw_file(RAW_DATA_DIR)
     if not raw_file:
+        return
+
+    city, postal = load_location_info(CONFIG_PATH)
+    if not city or not postal:
+        return
+
+    raw_data = load_raw_weather(raw_file)
+    if not raw_data:
         return
 
 
