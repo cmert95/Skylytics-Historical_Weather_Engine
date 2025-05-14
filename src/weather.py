@@ -32,12 +32,24 @@ def get_informations(filename=Path("config/location.json")):
 
 def get_weather_data(lat, lon, start_date, end_date):
     url = "https://archive-api.open-meteo.com/v1/archive"
+
+    ALL_DAILY_VARIABLES = [
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "temperature_2m_mean",
+        "precipitation_sum",
+        "rain_sum",
+        "snowfall_sum",
+        "windspeed_10m_max",
+        "shortwave_radiation_sum",
+        "sunshine_duration",
+    ]
     params = {
         "latitude": lat,
         "longitude": lon,
         "start_date": start_date,
         "end_date": end_date,
-        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
+        "daily": ",".join(ALL_DAILY_VARIABLES),
         "timezone": "Europe/Berlin",
     }
 
@@ -71,8 +83,8 @@ def run():
         logger.error("Postal not found. Exiting.")
         return
 
-    start_date = "2023-04-01"
-    end_date = "2024-04-10"
+    start_date = "2023-04-23"
+    end_date = "2024-04-23"
 
     data = get_weather_data(lat, lon, start_date, end_date)
     if not data:
