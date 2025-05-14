@@ -1,11 +1,13 @@
-import glob
 import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+
+RAW_DATA_DIR = Path("data/raw")
 
 logging.basicConfig(
     filename="logs/cleaning_logs.log",
@@ -15,18 +17,14 @@ logging.basicConfig(
 
 
 # Find the most recent raw json file
-def find_latest_file(path="data/raw"):
-    try:
-        latest_file = max(glob.glob(os.path.join(path, "raw_weather_*.json")), key=os.path.getctime)
-    except ValueError:
-        logging.error("No raw json files found.")
+def get_latest_raw_file(directory):
+    files = list(directory.glob("raw_weather_*.json"))
+    if not files:
+        logging.error("No raw weather files found.")
         return None
-    except Exception as e:
-        logging.error(f"Error finding the latest file: {e}")
-        return None
-    else:
-        logging.info(f"Last file found: {latest_file}")
-        return latest_file
+    latest = max(files, key=lambda f: f.stat().st_ctime)
+    logging.info(f"Latest raw file: {latest}")
+    return latest
 
 
 # Load city and postal info from JSON
@@ -133,7 +131,11 @@ def save_cleaned_data(df):
         logging.error(f"Failed to save cleaned data to Parquet: {e}")
 
 
+def main():
+    raw_file = get_latest_raw_file(RAW_DATA_DIR)
+    if not raw_file:
+        return
+
+
 if __name__ == "__main__":
-    raw_data = load_raw_data(find_latest_file())
-    df_clean = clean_data(raw_data, *get_location_info())
-    save_cleaned_data(df_clean)
+    main()
