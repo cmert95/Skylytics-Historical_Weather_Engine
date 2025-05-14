@@ -1,77 +1,92 @@
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 
+from src.logger import setup_logger
+
 RAW_DATA_DIR = Path("data/raw")
 CONFIG_PATH = Path("config/location.json")
 CLEANED_DATA_DIR = Path("data/cleaned")
 TIMEZONE = ZoneInfo("Europe/Berlin")
 
-logging.basicConfig(
-    filename="logs/cleaning_logs.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = setup_logger(__name__, log_name="cleaning_logs")
 
 
 # Find the most recent raw json file
 def get_latest_raw_file(directory):
     files = list(directory.glob("raw_weather_*.json"))
     if not files:
-        logging.error("No raw weather files found.")
+        logger.error("No raw weather files found.")
         return None
     latest = max(files, key=lambda f: f.stat().st_ctime)
-    logging.info(f"Latest raw file: {latest}")
+    logger.info(f"Latest raw file: {latest}")
     return latest
 
 
 def load_location_info(filepath):
     if not filepath.exists():
-        logging.error(f"Config file not found: {filepath}")
+        logger.error(f"Config file not found: {filepath}")
         return None, None
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        logging.error(f"Invalid JSON in config file: {e}")
+        logger.error(f"Invalid JSON in config file: {e}")
         return None, None
 
     city = data.get("city")
     postal = data.get("postal")
     if not city or not postal:
-        logging.error("Missing 'city' or 'postal' in location config.")
+        logger.error("Missing 'city' or 'postal' in location config.")
         return None, None
 
-    logging.info(f"Location info retrieved: {city}, {postal}")
+    logger.info(f"Location info retrieved: {city}, {postal}")
     return city, postal
 
 
 def load_raw_weather(filepath):
     if not filepath.exists():
-        logging.error(f"Raw data file does not exist: {filepath}")
+        logger.error(f"Raw data file does not exist: {filepath}")
         return None
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-        logging.info(f"Loaded raw data from: {filepath}")
+        logger.info(f"Loaded raw data from: {filepath}")
         return data
     except json.JSONDecodeError as e:
-        logging.error(f"Failed to parse raw JSON: {e}")
+        logger.error(f"Failed to parse raw JSON: {e}")
         return None
 
 
 def clean_data(raw_data, city, postal):
     daily = raw_data.get("daily")
-    required_keys = ["time", "temperature_2m_max", "temperature_2m_min", "precipitation_sum"]
 
-    if not daily or not all(k in daily for k in required_keys):
-        logging.error("Missing expected keys in 'daily' section of raw data.")
+    required_keys = [
+        "time",
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "temperature_2m_mean",
+        "precipitation_sum",
+        "rain_sum",
+        "snowfall_sum",
+        "windspeed_10m_max",
+        "shortwave_radiation_sum",
+        "sunshine_duration",
+    ]
+
+    daily = raw_data.get("daily")
+    if not daily:
+        logger.error("Missing 'daily' section in raw weather data.")
+        return pd.DataFrame()
+
+    missing_keys = [k for k in required_keys if k not in daily]
+    if missing_keys:
+        logger.error(f"Missing required keys in 'daily': {missing_keys}")
         return pd.DataFrame()
 
     df = pd.DataFrame(
@@ -79,14 +94,20 @@ def clean_data(raw_data, city, postal):
             "Date": daily["time"],
             "Temp_Max_C": daily["temperature_2m_max"],
             "Temp_Min_C": daily["temperature_2m_min"],
+            "Temp_Mean_C": daily["temperature_2m_mean"],
             "Precipitation_mm": daily["precipitation_sum"],
+            "Rain_mm": daily["rain_sum"],
+            "Snowfall_mm": daily["snowfall_sum"],
+            "WindSpeed_Max_kph": daily["windspeed_10m_max"],
+            "Radiation_Sum_kWh": daily["shortwave_radiation_sum"],
+            "Sunshine_Minutes": daily["sunshine_duration"],
         }
     )
 
     df["City"] = city
     df["PostalCode"] = postal
 
-    logging.info("Weather data cleaned successfully.")
+    logger.info("Weather data cleaned successfully.")
     return df
 
 
@@ -99,9 +120,9 @@ def save_cleaned_data(df):
 
     try:
         df.to_csv(csv_path, index=False)
-        logging.info(f"Cleaned data saved to CSV: {csv_path}")
+        logger.info(f"Cleaned data saved to CSV: {csv_path}")
     except Exception as e:
-        logging.error(f"Failed to save cleaned data to CSV: {e}")
+        logger.error(f"Failed to save cleaned data to CSV: {e}")
 
 
 def main():
@@ -119,7 +140,7 @@ def main():
 
     df = clean_data(raw_data, city, postal)
     if df.empty:
-        logging.error("No data to save. DataFrame is empty.")
+        logger.error("No data to save. DataFrame is empty.")
         return
 
     save_cleaned_data(df)
