@@ -14,19 +14,20 @@ RAW_DATA_DIR = Path("data/raw")
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def get_coordinates(filename=Path("config/location.json")):
+def get_informations(filename=Path("config/location.json")):
     try:
         with open(filename, "r") as f:
             location = json.load(f)
         lat = location.get("latitude")
         lon = location.get("longitude")
-        if lat is None or lon is None:
-            raise ValueError("Missing latitude or longitude in config file.")
-        logger.info(f"Coordinates retrieved: {lat}, {lon}")
-        return lat, lon
+        postnum = location.get("postal")
+        if lat is None or lon is None or postnum is None:
+            raise ValueError("Missing values in config file.")
+        logger.info(f"Informations retrieved: {lat}, {lon}, {postnum}")
+        return lat, lon, postnum
     except Exception as e:
-        logger.error(f"Error loading coordinates: {e}")
-        return None, None
+        logger.error(f"Error loading informations: {e}")
+        return None, None, None
 
 
 def get_weather_data(lat, lon, start_date, end_date):
@@ -61,9 +62,13 @@ def save_to_file(data, filename):
 
 
 def run():
-    lat, lon = get_coordinates()
+    lat, lon, postnum = get_informations()
     if not lat or not lon:
         logger.error("Coordinates not found. Exiting.")
+        return
+
+    if not postnum:
+        logger.error("Postal not found. Exiting.")
         return
 
     start_date = "2023-04-01"
@@ -75,7 +80,7 @@ def run():
         return
 
     timestamp = datetime.now(TIMEZONE).strftime("%Y-%m-%d_%H-%M")
-    filename = RAW_DATA_DIR / f"openmeteo_weather_{timestamp}.json"
+    filename = RAW_DATA_DIR / f"raw_weather_{postnum}_{timestamp}.json"
     save_to_file(data, filename)
 
 
