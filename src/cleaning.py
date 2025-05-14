@@ -63,7 +63,7 @@ def load_raw_weather(filepath):
         return None
 
 
-def clean_data(raw_data, city, postal):
+def build_dataframe(raw_data, city, postal):
     daily = raw_data.get("daily")
 
     required_keys = [
@@ -107,11 +107,39 @@ def clean_data(raw_data, city, postal):
     df["City"] = city
     df["PostalCode"] = postal
 
-    logger.info("Weather data cleaned successfully.")
+    logger.info("DataFrame constructed successfully with %d rows.", len(df))
     return df
 
 
-# Save cleaned data to CSV and Parquet
+def clean_data(df):
+    # Convert Date to datetime
+    df["Date"] = pd.to_datetime(df["Date"])
+    logger.debug("Converted 'Date' column to datetime.")
+
+    # Filter out extreme values
+    original_len = len(df)
+    df = df[(df["Temp_Max_C"] <= 60) & (df["Temp_Min_C"] >= -30) & (df["WindSpeed_Max_kph"] < 200)]
+    filtered_len = len(df)
+    logger.info("Filtered out %d rows with extreme values.", original_len - filtered_len)
+
+    # Interpolate numeric columns
+    numeric_cols = df.select_dtypes(include="number").columns
+    df[numeric_cols] = df[numeric_cols].interpolate(method="linear").round(1)
+    logger.debug("Interpolated numeric columns: %s", list(numeric_cols))
+
+    # Fill non-numeric nulls
+    non_numeric_cols = df.select_dtypes(exclude="number").columns
+    df[non_numeric_cols] = df[non_numeric_cols].ffill()
+    logger.debug("Forward-filled non-numeric columns: %s", list(non_numeric_cols))
+
+    # Sort and reset index
+    df.sort_values("Date", inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    logger.info("Data cleaning completed. Final row count: %d", len(df))
+
+    return df
+
+
 def save_cleaned_data(df):
     CLEANED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(TIMEZONE).strftime("%Y%m%d_%H%M%S")
@@ -138,9 +166,14 @@ def main():
     if not raw_data:
         return
 
-    df = clean_data(raw_data, city, postal)
+    df = build_dataframe(raw_data, city, postal)
     if df.empty:
-        logger.error("No data to save. DataFrame is empty.")
+        logger.error("DataFrame is empty after building.")
+        return
+
+    df = clean_data(df)
+    if df.empty:
+        logger.error("No data to save. DataFrame is empty after cleaning.")
         return
 
     save_cleaned_data(df)
