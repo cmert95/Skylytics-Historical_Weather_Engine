@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -9,6 +8,7 @@ import pandas as pd
 
 RAW_DATA_DIR = Path("data/raw")
 CONFIG_PATH = Path("config/location.json")
+CLEANED_DATA_DIR = Path("data/cleaned")
 TIMEZONE = ZoneInfo("Europe/Berlin")
 
 logging.basicConfig(
@@ -67,79 +67,41 @@ def load_raw_weather(filepath):
 
 
 def clean_data(raw_data, city, postal):
-    try:
-        # Flatten hourly forecast
-        records = []
-        for day in raw_data["forecast"]["forecastday"]:
-            for hour in day["hour"]:
-                records.append(hour)
+    daily = raw_data.get("daily")
+    required_keys = ["time", "temperature_2m_max", "temperature_2m_min", "precipitation_sum"]
 
-        df = pd.json_normalize(records)
-
-        # Rename columns
-        df = df[["time", "temp_c", "condition.text", "humidity", "wind_kph", "feelslike_c"]]
-        df.columns = [
-            "DateTime",
-            "Temperature_C",
-            "Condition",
-            "Humidity_perc",
-            "WindSpeed_kph",
-            "FeelsLike_C",
-        ]
-
-        # Parse datetime
-        df["DateTime"] = pd.to_datetime(df["DateTime"])
-
-        # Clean condition labels
-        df["Condition"] = df["Condition"].str.strip().str.title()
-
-        # Add city and postal code
-        df["City"] = city
-        df["PostalCode"] = postal
-
-        # Drop unrealistic temperature values
-        df = df[(df["Temperature_C"] <= 60) & (df["Temperature_C"] >= -30)]
-
-        # Resample
-        df.set_index("DateTime", inplace=True)
-        interval = os.getenv("INTERVAL", "30min")
-        df = df.resample(interval).asfreq()
-
-        # Filling numeric columns
-        num_cols = df.select_dtypes(include="number").columns
-        df[num_cols] = df[num_cols].interpolate(method="linear").round(1)
-
-        # Filling non-numeric columns
-        non_num_cols = df.select_dtypes(exclude="number").columns
-        df[non_num_cols] = df[non_num_cols].ffill()
-
-        df.reset_index(inplace=True)
-        logging.info("Forecast data cleaned and interpolated successfully.")
-        return df
-
-    except Exception as e:
-        logging.error(f"Data cleaning failed: {e}")
+    if not daily or not all(k in daily for k in required_keys):
+        logging.error("Missing expected keys in 'daily' section of raw data.")
         return pd.DataFrame()
+
+    df = pd.DataFrame(
+        {
+            "Date": daily["time"],
+            "Temp_Max_C": daily["temperature_2m_max"],
+            "Temp_Min_C": daily["temperature_2m_min"],
+            "Precipitation_mm": daily["precipitation_sum"],
+        }
+    )
+
+    df["City"] = city
+    df["PostalCode"] = postal
+
+    logging.info("Weather data cleaned successfully.")
+    return df
 
 
 # Save cleaned data to CSV and Parquet
 def save_cleaned_data(df):
-    local_now = datetime.now(ZoneInfo("Europe/Berlin"))
-    timestamp = local_now.strftime("%d%m%Y_%H%M%S")
-    csv_path = f"data/cleaned/cleaned_weather_{timestamp}.csv"
-    parquet_path = f"data/cleaned/cleaned_weather_{timestamp}.parquet"
+    CLEANED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(TIMEZONE).strftime("%Y%m%d_%H%M%S")
+
+    csv_path = CLEANED_DATA_DIR / f"cleaned_weather_{timestamp}.csv"
 
     try:
         df.to_csv(csv_path, index=False)
         logging.info(f"Cleaned data saved to CSV: {csv_path}")
     except Exception as e:
         logging.error(f"Failed to save cleaned data to CSV: {e}")
-
-    try:
-        df.to_parquet(parquet_path, index=False)
-        logging.info(f"Cleaned data saved to Parquet: {parquet_path}")
-    except Exception as e:
-        logging.error(f"Failed to save cleaned data to Parquet: {e}")
 
 
 def main():
@@ -154,6 +116,13 @@ def main():
     raw_data = load_raw_weather(raw_file)
     if not raw_data:
         return
+
+    df = clean_data(raw_data, city, postal)
+    if df.empty:
+        logging.error("No data to save. DataFrame is empty.")
+        return
+
+    save_cleaned_data(df)
 
 
 if __name__ == "__main__":
