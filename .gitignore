@@ -26,8 +26,5 @@ data/**
 logs/*
 !logs/.gitkeep
 
-config/*
-!config/.gitkeep
-
 .coverage
 htmlcov/

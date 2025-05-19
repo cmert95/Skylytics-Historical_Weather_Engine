@@ -1,0 +1,7 @@
+weather:
+  days_to_pull: 365
+
+location:
+  latitude: null
+  longitude: null
+  postal: null
