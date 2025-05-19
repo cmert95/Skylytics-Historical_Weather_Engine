@@ -41,6 +41,9 @@ def fetch_location_from_ip():
 
 
 def save_location(location, path=SYSTEM_LOCATION_PATH):
+    if not location:
+        logger.warning("[SAVE] No location information provided.")
+        return
     try:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
