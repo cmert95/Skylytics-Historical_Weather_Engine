@@ -12,8 +12,16 @@ env/
 
 .vscode/
 
-data/*
-!data/.gitkeep
+data/**
+!data/sources/
+!data/staging/
+!data/warehouse/
+!data/preview/
+
+!data/sources/.gitkeep
+!data/staging/.gitkeep
+!data/warehouse/.gitkeep
+!data/preview/.gitkeep
 
 logs/*
 !logs/.gitkeep
