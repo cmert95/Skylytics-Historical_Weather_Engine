@@ -1,16 +1,17 @@
 import json
+from pathlib import Path
 
 import requests
 
+from src.config import SETTINGS, SYSTEM_LOCATION_PATH
 from src.logger import setup_logger
 
 logger = setup_logger(__name__, log_name="ip_logs")
 
 
-# Retrieves city, postal and location information based on the public IP address.
-def get_ip_info():
+def fetch_location_from_ip():
     url = "https://ipinfo.io/json"
-    logger.info("Sending request to IPinfo API.")
+    logger.info("Fetching location from IPinfo API")
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -32,29 +33,53 @@ def get_ip_info():
             logger.error(f"Failed to parse coordinates: {e}")
             return None
 
-        logger.info(
-            f"Request successful. City: {city}, Postal code: {postal}, Lat: {latitude}, Lon: {longitude}."
-        )
         return {"city": city, "postal": postal, "latitude": latitude, "longitude": longitude}
     else:
-        logger.warning("Some location fields are missing in the response.")
+        logger.warning("Incomplete location info from IP API")
         return None
 
 
-# Saves the city and postal info to a JSON config file
-def save_location(location, filename="config/location.json"):
-    if not location:
-        logger.warning("No location information provided, nothing saved.")
-        return
-
+def save_location(location, path=SYSTEM_LOCATION_PATH):
     try:
-        with open(filename, "w") as f:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
             json.dump(location, f)
-        logger.info(f"File saved successfully: {filename}")
+        logger.info(f"Location saved to {path}")
     except Exception as e:
-        logger.error(f"Failed to save file to {filename}: {e}")
+        logger.error(f"Failed to save location to {path}: {e}")
+
+
+def read_location_file(path):
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read location file: {e}")
+        return None
+
+
+def load_location():
+    loc = SETTINGS.get("location", {})
+    lat, lon, postal = loc.get("latitude"), loc.get("longitude"), loc.get("postal")
+
+    if lat and lon and postal:
+        logger.info("Loaded location from settings.yaml")
+        return {"latitude": lat, "longitude": lon, "postal": postal}
+
+    if Path(SYSTEM_LOCATION_PATH).exists():
+        logger.info("Using cached location file")
+        return read_location_file(SYSTEM_LOCATION_PATH)
+
+    logger.info("No location in settings or cache. Using IP lookup")
+    location = fetch_location_from_ip()
+    if location:
+        save_location(location)
+    return location
 
 
 if __name__ == "__main__":
-    location = get_ip_info()
-    save_location(location)
+    location = load_location()
+    if location:
+        logger.info(f"Final resolved location: {location}")
+    else:
+        logger.error("Could not resolve any location")
