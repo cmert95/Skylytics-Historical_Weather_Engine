@@ -5,3 +5,5 @@ location:
   latitude: null
   longitude: null
   postal: null
+
+timezone: Europe/Berlin

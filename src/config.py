@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import yaml
 from dotenv import load_dotenv
@@ -22,3 +23,6 @@ def load_yaml_config(path=BASE_DIR / "config" / "settings.yaml"):
 
 SETTINGS = load_yaml_config()
 DAYS_TO_PULL = int(os.getenv("DAYS_TO_PULL", SETTINGS.get("weather", {}).get("days_to_pull", 90)))
+
+TIMEZONE_NAME = os.getenv("TIMEZONE", SETTINGS.get("timezone", "Europe/Berlin"))
+TIMEZONE = ZoneInfo(TIMEZONE_NAME)
