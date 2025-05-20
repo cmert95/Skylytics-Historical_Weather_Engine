@@ -1,65 +1,58 @@
 import json
 from datetime import datetime
-from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 
+from src.config import RAW_DATA_DIR, STAGING_DATA_DIR, SYSTEM_LOCATION_PATH, TIMEZONE
 from src.logger import setup_logger
 
-RAW_DATA_DIR = Path("data/raw")
-CONFIG_PATH = Path("config/location.json")
-CLEANED_DATA_DIR = Path("data/cleaned")
-TIMEZONE = ZoneInfo("Europe/Berlin")
-
-logger = setup_logger(__name__, log_name="cleaning_logs")
+logger = setup_logger(__name__, log_name="data_cleaner")
 
 
-# Find the most recent raw json file
 def get_latest_raw_file(directory):
     files = list(directory.glob("raw_weather_*.json"))
     if not files:
-        logger.error("No raw weather files found.")
+        logger.error("[FILE] No raw weather files found.")
         return None
     latest = max(files, key=lambda f: f.stat().st_ctime)
-    logger.info(f"Latest raw file: {latest}")
+    logger.info(f"[FILE] Latest raw file selected: {latest}")
     return latest
 
 
 def load_location_info(filepath):
     if not filepath.exists():
-        logger.error(f"Config file not found: {filepath}")
+        logger.error(f"[CONFIG] File not found: {filepath}")
         return None, None
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in config file: {e}")
+        logger.error(f"[CONFIG] Invalid JSON: {e}")
         return None, None
 
     city = data.get("city")
     postal = data.get("postal")
     if not city or not postal:
-        logger.error("Missing 'city' or 'postal' in location config.")
+        logger.error("[CONFIG] Missing 'city' or 'postal' field.")
         return None, None
 
-    logger.info(f"Location info retrieved: {city}, {postal}")
+    logger.info(f"[CONFIG] Loaded city & postal → {city}, {postal}")
     return city, postal
 
 
 def load_raw_weather(filepath):
     if not filepath.exists():
-        logger.error(f"Raw data file does not exist: {filepath}")
+        logger.error(f"[LOAD] File does not exist: {filepath}")
         return None
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-        logger.info(f"Loaded raw data from: {filepath}")
+        logger.info(f"[LOAD] Raw weather data loaded from {filepath}")
         return data
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse raw JSON: {e}")
+        logger.error(f"[LOAD] Failed to parse JSON: {e}")
         return None
 
 
@@ -79,14 +72,13 @@ def build_dataframe(raw_data, city, postal):
         "sunshine_duration",
     ]
 
-    daily = raw_data.get("daily")
     if not daily:
-        logger.error("Missing 'daily' section in raw weather data.")
+        logger.error("[BUILD] Missing 'daily' section in raw weather data.")
         return pd.DataFrame()
 
     missing_keys = [k for k in required_keys if k not in daily]
     if missing_keys:
-        logger.error(f"Missing required keys in 'daily': {missing_keys}")
+        logger.error(f"[BUILD] Missing keys in 'daily': {missing_keys}")
         return pd.DataFrame()
 
     df = pd.DataFrame(
@@ -107,50 +99,49 @@ def build_dataframe(raw_data, city, postal):
     df["City"] = city
     df["PostalCode"] = postal
 
-    logger.info("DataFrame constructed successfully with %d rows.", len(df))
+    logger.info(f"[BUILD] DataFrame constructed with {len(df)} rows.")
     return df
 
 
 def clean_data(df):
     # Convert Date to datetime
     df["Date"] = pd.to_datetime(df["Date"])
-    logger.debug("Converted 'Date' column to datetime.")
+    logger.debug("[CLEAN] Converted 'Date' to datetime")
 
     # Filter out extreme values
     original_len = len(df)
     df = df[(df["Temp_Max_C"] <= 60) & (df["Temp_Min_C"] >= -30) & (df["WindSpeed_Max_kph"] < 200)]
-    filtered_len = len(df)
-    logger.info("Filtered out %d rows with extreme values.", original_len - filtered_len)
+    logger.info(f"[CLEAN] Removed {original_len - len(df)} rows with extreme values")
 
     # Interpolate numeric columns
     numeric_cols = df.select_dtypes(include="number").columns
     df[numeric_cols] = df[numeric_cols].interpolate(method="linear").round(1)
-    logger.debug("Interpolated numeric columns: %s", list(numeric_cols))
+    logger.debug(f"[CLEAN] Interpolated numeric columns: {list(numeric_cols)}")
 
     # Fill non-numeric nulls
     non_numeric_cols = df.select_dtypes(exclude="number").columns
     df[non_numeric_cols] = df[non_numeric_cols].ffill()
-    logger.debug("Forward-filled non-numeric columns: %s", list(non_numeric_cols))
+    logger.debug(f"[CLEAN] Forward-filled non-numeric columns: {list(non_numeric_cols)}")
 
     # Sort and reset index
     df.sort_values("Date", inplace=True)
     df.reset_index(drop=True, inplace=True)
-    logger.info("Data cleaning completed. Final row count: %d", len(df))
+    logger.info(f"[CLEAN] DataFrame ready. Final row count: {len(df)}")
 
     return df
 
 
 def save_cleaned_data(df):
-    CLEANED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    STAGING_DATA_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(TIMEZONE).strftime("%Y%m%d_%H%M%S")
 
-    csv_path = CLEANED_DATA_DIR / f"cleaned_weather_{timestamp}.csv"
+    csv_path = STAGING_DATA_DIR / f"cleaned_weather_{timestamp}.csv"
 
     try:
         df.to_csv(csv_path, index=False)
-        logger.info(f"Cleaned data saved to CSV: {csv_path}")
+        logger.info(f"[SAVE] File written to: {csv_path}")
     except Exception as e:
-        logger.error(f"Failed to save cleaned data to CSV: {e}")
+        logger.error(f"[SAVE] Failed to write CSV → {e}")
 
 
 def main():
@@ -158,7 +149,7 @@ def main():
     if not raw_file:
         return
 
-    city, postal = load_location_info(CONFIG_PATH)
+    city, postal = load_location_info(SYSTEM_LOCATION_PATH)
     if not city or not postal:
         return
 
@@ -168,12 +159,12 @@ def main():
 
     df = build_dataframe(raw_data, city, postal)
     if df.empty:
-        logger.error("DataFrame is empty after building.")
+        logger.error("[PIPELINE] Empty DataFrame after building.")
         return
 
     df = clean_data(df)
     if df.empty:
-        logger.error("No data to save. DataFrame is empty after cleaning.")
+        logger.error("[PIPELINE] Empty DataFrame after cleaning.")
         return
 
     save_cleaned_data(df)
