@@ -1,20 +1,19 @@
 import json
-from datetime import datetime
-from pathlib import Path
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
 
+from src.config import DAYS_TO_PULL, RAW_DATA_DIR, SYSTEM_LOCATION_PATH
 from src.logger import setup_logger
 
 logger = setup_logger(__name__, log_name="weather_openmeteo_logs")
 
 TIMEZONE = ZoneInfo("Europe/Berlin")
-RAW_DATA_DIR = Path("data/raw")
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def get_informations(filename=Path("config/location.json")):
+def get_location_info(filename=SYSTEM_LOCATION_PATH):
     try:
         with open(filename, "r") as f:
             location = json.load(f)
@@ -26,13 +25,18 @@ def get_informations(filename=Path("config/location.json")):
         logger.info(f"Informations retrieved: {lat}, {lon}, {postnum}")
         return lat, lon, postnum
     except Exception as e:
-        logger.error(f"Error loading informations: {e}")
+        logger.error(f"Error loading location information: {e}")
         return None, None, None
+
+
+def prepare_date_range():
+    end_date = date.today()
+    start_date = end_date - timedelta(days=DAYS_TO_PULL)
+    return start_date.isoformat(), end_date.isoformat()
 
 
 def get_weather_data(lat, lon, start_date, end_date):
     url = "https://archive-api.open-meteo.com/v1/archive"
-
     ALL_DAILY_VARIABLES = [
         "temperature_2m_max",
         "temperature_2m_min",
@@ -73,27 +77,30 @@ def save_to_file(data, filename):
         logger.error(f"Failed to save weather data: {e}")
 
 
-def run():
-    lat, lon, postnum = get_informations()
-    if not lat or not lon:
-        logger.error("Coordinates not found. Exiting.")
-        return
-
-    if not postnum:
-        logger.error("Postal not found. Exiting.")
-        return
-
-    start_date = "2023-04-23"
-    end_date = "2024-04-23"
-
+def fetch_and_store_weather(lat, lon, postal):
+    start_date, end_date = prepare_date_range()
     data = get_weather_data(lat, lon, start_date, end_date)
+
     if not data:
         logger.error("No data fetched. Exiting.")
         return
 
     timestamp = datetime.now(TIMEZONE).strftime("%Y-%m-%d_%H-%M")
-    filename = RAW_DATA_DIR / f"raw_weather_{postnum}_{timestamp}.json"
+    filename = RAW_DATA_DIR / f"raw_weather_{postal}_{timestamp}.json"
     save_to_file(data, filename)
+
+
+def run():
+    lat, lon, postal = get_location_info()
+    if not lat or not lon:
+        logger.error("Coordinates not found. Exiting.")
+        return
+
+    if not postal:
+        logger.error("Postal not found. Exiting.")
+        return
+
+    fetch_and_store_weather(lat, lon, postal)
 
 
 if __name__ == "__main__":
