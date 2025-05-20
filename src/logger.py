@@ -1,8 +1,7 @@
 import logging
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOG_DIR = BASE_DIR / "logs"
+from src.config import LOG_DIR
+
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
