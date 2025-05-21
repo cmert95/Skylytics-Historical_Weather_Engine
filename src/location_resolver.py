@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Optional, TypedDict, Union
 
 import requests
 
@@ -9,19 +10,29 @@ from src.logger import setup_logger
 logger = setup_logger(__name__, log_name="ip_logs")
 
 
-def fetch_location_from_ip():
-    url = "https://ipinfo.io/json"
+class LocationDict(TypedDict):
+    city: str
+    postal: str
+    latitude: float
+    longitude: float
+
+
+def fetch_location_from_ip() -> Optional[LocationDict]:
+    url: str = "https://ipinfo.io/json"
     logger.info("[FETCH] Fetching location from IPinfo API")
     try:
-        response = requests.get(url, timeout=10)
+        response: requests.Response = requests.get(url, timeout=10)
         response.raise_for_status()
-        data = response.json()
+        data: dict = response.json()
     except (
         requests.exceptions.Timeout,
         requests.exceptions.HTTPError,
         requests.exceptions.RequestException,
     ) as e:
         logger.error(f"[FETCH] API request failed → {e}")
+        return None
+    except Exception as e:
+        logger.error(f"[FETCH] Unexpected error → {e.__class__.__name__}: {e}")
         return None
 
     city = data.get("city")
@@ -36,6 +47,9 @@ def fetch_location_from_ip():
         except (ValueError, AttributeError) as e:
             logger.error(f"[FETCH] Failed to parse coordinates → {e}")
             return None
+        except Exception as e:
+            logger.error(f"[FETCH] Unexpected error → {e.__class__.__name__}: {e}")
+            return None
 
         logger.info(f"[FETCH] Location fetched from IP → {city}, {postal}, {latitude}, {longitude}")
         return {"city": city, "postal": postal, "latitude": latitude, "longitude": longitude}
@@ -44,29 +58,34 @@ def fetch_location_from_ip():
         return None
 
 
-def save_location(location, path=SYSTEM_LOCATION_PATH):
+def save_location(
+    location: Optional[LocationDict], path: Union[str, Path] = SYSTEM_LOCATION_PATH
+) -> bool:
     if not location:
         logger.warning("[SAVE] No location information provided.")
         return False
     try:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(location, f, indent=2)
         logger.info(f"[SAVE] Location saved to → {path}")
         return True
-    except (OSError, PermissionError) as e:
+    except (PermissionError, FileNotFoundError, OSError) as e:
         logger.error(f"[SAVE] File system error while saving → {e}")
         return False
-    except TypeError as e:
-        logger.error(f"[SAVE] Serialization error → {e}")
+    except (ValueError, TypeError) as e:
+        logger.error(f"[SAVE] Data format issue → {e}")
+        return False
+    except Exception as e:
+        logger.error(f"[SAVE] Unexpected error → {e.__class__.__name__}: {e}")
         return False
 
 
-def read_location_file(path):
+def read_location_file(path: Union[str, Path]) -> Optional[LocationDict]:
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except FileNotFoundError:
+    except (PermissionError, FileNotFoundError):
         logger.warning(f"[CONFIG] Failed to read location file → {path}")
         # TODO: Change this message to "Location file not found" after updating the test
         return None
@@ -76,12 +95,17 @@ def read_location_file(path):
     except OSError as e:
         logger.error(f"[CONFIG] Error reading file → {e}")
         return None
+    except Exception as e:
+        logger.error(f"[CONFIG] Unexpected error → {e.__class__.__name__}: {e}")
+        return None
 
 
-def resolve_location():
+def resolve_location() -> Optional[LocationDict]:
     # 1. Try from settings.yaml
     loc = SETTINGS.get("location", {})
-    lat, lon, postal = loc.get("latitude"), loc.get("longitude"), loc.get("postal")
+    lat = loc.get("latitude")
+    lon = loc.get("longitude")
+    postal = loc.get("postal")
 
     if lat and lon and postal:
         logger.info("[CONFIG] Location loaded from settings.yaml")
@@ -100,7 +124,7 @@ def resolve_location():
     return location
 
 
-def run() -> dict | None:
+def run() -> Optional[LocationDict]:
     location = resolve_location()
     if not location:
         logger.error("[ERROR] Could not resolve any location.")
