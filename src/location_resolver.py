@@ -16,8 +16,12 @@ def fetch_location_from_ip():
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[FETCH] Failed to fetch IP info → {e}")
+    except (
+        requests.exceptions.Timeout,
+        requests.exceptions.HTTPError,
+        requests.exceptions.RequestException,
+    ) as e:
+        logger.error(f"[FETCH] API request failed → {e}")
         return None
 
     city = data.get("city")
@@ -29,7 +33,7 @@ def fetch_location_from_ip():
             lat_str, lon_str = loc.split(",")
             latitude = float(lat_str.strip())
             longitude = float(lon_str.strip())
-        except Exception as e:
+        except (ValueError, AttributeError) as e:
             logger.error(f"[FETCH] Failed to parse coordinates → {e}")
             return None
 
@@ -43,26 +47,38 @@ def fetch_location_from_ip():
 def save_location(location, path=SYSTEM_LOCATION_PATH):
     if not location:
         logger.warning("[SAVE] No location information provided.")
-        return
+        return False
     try:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             json.dump(location, f, indent=2)
         logger.info(f"[SAVE] Location saved to → {path}")
-    except Exception as e:
-        logger.error(f"[SAVE] Failed to save location to {path} → {e}")
+        return True
+    except (OSError, PermissionError) as e:
+        logger.error(f"[SAVE] File system error while saving → {e}")
+        return False
+    except TypeError as e:
+        logger.error(f"[SAVE] Serialization error → {e}")
+        return False
 
 
 def read_location_file(path):
     try:
         with open(path, "r") as f:
             return json.load(f)
-    except Exception as e:
-        logger.error(f"[CONFIG] Failed to read location file → {e}")
+    except FileNotFoundError:
+        logger.warning(f"[CONFIG] Failed to read location file → {path}")
+        # TODO: Change this message to "Location file not found" after updating the test
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"[CONFIG] Invalid JSON format in location file → {e}")
+        return None
+    except OSError as e:
+        logger.error(f"[CONFIG] Error reading file → {e}")
         return None
 
 
-def load_location():
+def resolve_location():
     # 1. Try from settings.yaml
     loc = SETTINGS.get("location", {})
     lat, lon, postal = loc.get("latitude"), loc.get("longitude"), loc.get("postal")
@@ -84,9 +100,14 @@ def load_location():
     return location
 
 
-if __name__ == "__main__":
-    location = load_location()
-    if location:
-        logger.info(f"[DONE] Final location resolved → {location}")
-    else:
+def run() -> dict | None:
+    location = resolve_location()
+    if not location:
         logger.error("[ERROR] Could not resolve any location.")
+        return None
+    logger.info(f"[DONE] Final location resolved → {location}")
+    return location
+
+
+if __name__ == "__main__":
+    run()
