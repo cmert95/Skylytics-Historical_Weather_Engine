@@ -1,22 +1,17 @@
 import json
 from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import requests
 
-from src.config import DAYS_TO_PULL, RAW_DATA_DIR, SYSTEM_LOCATION_PATH
+from src.config import DAYS_TO_PULL, RAW_DATA_DIR, SYSTEM_LOCATION_PATH, TIMEZONE
 from src.logger import setup_logger
 
 logger = setup_logger(__name__, log_name="weather_openmeteo_logs")
 
-TIMEZONE = ZoneInfo("Europe/Berlin")
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_location_info(filename=SYSTEM_LOCATION_PATH):
-    """
-    Loads location information (lat, lon, postal) from JSON config.
-    """
     try:
         with open(filename, "r") as f:
             location = json.load(f)
@@ -27,8 +22,17 @@ def get_location_info(filename=SYSTEM_LOCATION_PATH):
             raise ValueError("Missing values in location file.")
         logger.info(f"[CONFIG] Location info loaded → lat: {lat}, lon: {lon}, postal: {postnum}")
         return lat, lon, postnum
-    except Exception as e:
-        logger.error(f"[CONFIG] Failed to load location info → {e}")
+    except (FileNotFoundError, PermissionError) as e:
+        logger.error(f"[CONFIG] File access issue → {e}")
+        return None, None, None
+    except json.JSONDecodeError as e:
+        logger.error(f"[CONFIG] Malformed JSON → {e}")
+        return None, None, None
+    except ValueError as e:
+        logger.error(f"[CONFIG] Logical validation failed → {e}")
+        return None, None, None
+    except OSError as e:
+        logger.error(f"[CONFIG] OS-level file error → {e}")
         return None, None, None
 
 
@@ -66,18 +70,30 @@ def get_weather_data(lat, lon, start_date, end_date):
         response.raise_for_status()
         logger.info("[FETCH] Data fetched successfully from Open-Meteo API")
         return response.json()
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        logger.error(f"[FETCH] Network error during request → {e}")
+        return None
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"[FETCH] HTTP error → {e.response.status_code}: {e.response.text}")
+        return None
     except requests.exceptions.RequestException as e:
-        logger.error(f"[FETCH] API request failed → {e}")
+        logger.error(f"[FETCH] Unexpected request exception → {e}")
         return None
 
 
-def save_to_file(data, filename):
+def save_to_file(data, filename) -> bool:
     try:
         with open(filename, "w") as f:
             json.dump(data, f, indent=2)
         logger.info(f"[SAVE] Weather data saved to: {filename}")
-    except Exception as e:
-        logger.error(f"[SAVE] Failed to save file → {filename} | Reason: {e}")
+        return True
+    except (FileNotFoundError, PermissionError) as e:
+        logger.error(f"[SAVE] File access issue → {e}")
+    except TypeError as e:
+        logger.error(f"[SAVE] Serialization error (non-JSON serializable data?) → {e}")
+    except OSError as e:
+        logger.error(f"[SAVE] File write error → {e}")
+    return False
 
 
 def prepare_date_range():
@@ -102,17 +118,19 @@ def fetch_and_store_weather(lat, lon, postal):
     save_to_file(data, filename)
 
 
-def run():
+def run() -> bool:
     lat, lon, postal = get_location_info()
     if not lat or not lon:
-        logger.error("[RUN] Coordinates missing. Exiting.")
-        return
+        logger.error("[ERROR] Coordinates missing. Exiting.")
+        return False
 
     if not postal:
-        logger.error("[RUN] Postal code missing. Exiting.")
-        return
+        logger.error("[ERROR] Postal code missing. Exiting.")
+        return False
 
     fetch_and_store_weather(lat, lon, postal)
+    logger.info("[DONE] Weather data fetched and saved successfully.")
+    return True
 
 
 if __name__ == "__main__":
