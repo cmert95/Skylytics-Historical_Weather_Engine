@@ -144,31 +144,36 @@ def save_cleaned_data(df):
         logger.error(f"[SAVE] Failed to write CSV → {e}")
 
 
-def main():
+def run() -> bool:
     raw_file = get_latest_raw_file(RAW_DATA_DIR)
     if not raw_file:
-        return
+        logger.error("[ERROR] No raw file found.")
+        return False
 
     city, postal = load_location_info(SYSTEM_LOCATION_PATH)
     if not city or not postal:
-        return
+        logger.error("[ERROR] Invalid location metadata.")
+        return False
 
     raw_data = load_raw_weather(raw_file)
     if not raw_data:
-        return
+        logger.error("[ERROR] Failed to load raw weather data.")
+        return False
 
     df = build_dataframe(raw_data, city, postal)
     if df.empty:
-        logger.error("[PIPELINE] Empty DataFrame after building.")
-        return
+        logger.error("[ERROR] Empty DataFrame after building.")
+        return False
 
     df = clean_data(df)
     if df.empty:
-        logger.error("[PIPELINE] Empty DataFrame after cleaning.")
-        return
+        logger.error("[ERROR] Empty DataFrame after cleaning.")
+        return False
 
     save_cleaned_data(df)
+    logger.info("[DONE] Cleaned data saved successfully.")
+    return True
 
 
 if __name__ == "__main__":
-    main()
+    run()
