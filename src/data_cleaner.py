@@ -1,5 +1,7 @@
 import json
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional, Tuple
 
 import pandas as pd
 
@@ -9,7 +11,7 @@ from src.logger import setup_logger
 logger = setup_logger(__name__, log_name="data_cleaner")
 
 
-def get_latest_raw_file(directory):
+def get_latest_raw_file(directory: Path) -> Optional[Path]:
     files = list(directory.glob("raw_weather_*.json"))
     if not files:
         logger.error("[FILE] No raw weather files found.")
@@ -19,16 +21,22 @@ def get_latest_raw_file(directory):
     return latest
 
 
-def load_location_info(filepath):
+def load_location_info(filepath: Path) -> Tuple[Optional[str], Optional[str]]:
     if not filepath.exists():
         logger.error(f"[CONFIG] File not found: {filepath}")
         return None, None
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            data: dict[str, Any] = json.load(f)
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        logger.error(f"[CONFIG] File access error → {e}")
+        return None, None
     except json.JSONDecodeError as e:
         logger.error(f"[CONFIG] Invalid JSON: {e}")
+        return None, None
+    except Exception as e:
+        logger.error(f"[CONFIG] Unexpected error → {e.__class__.__name__}: {e}")
         return None, None
 
     city = data.get("city")
@@ -41,22 +49,28 @@ def load_location_info(filepath):
     return city, postal
 
 
-def load_raw_weather(filepath):
+def load_raw_weather(filepath: Path) -> Optional[dict[str, Any]]:
     if not filepath.exists():
         logger.error(f"[LOAD] File does not exist: {filepath}")
         return None
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            data: dict[str, Any] = json.load(f)
         logger.info(f"[LOAD] Raw weather data loaded from {filepath}")
         return data
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        logger.error(f"[LOAD] File access error → {e}")
+        return None
     except json.JSONDecodeError as e:
-        logger.error(f"[LOAD] Failed to parse JSON: {e}")
+        logger.error(f"[LOAD] Invalid JSON: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"[LOAD] Unexpected error → {e.__class__.__name__}: {e}")
         return None
 
 
-def build_dataframe(raw_data, city, postal):
+def build_dataframe(raw_data: dict[str, Any], city: str, postal: str) -> pd.DataFrame:
     daily = raw_data.get("daily")
 
     required_keys = [
@@ -103,7 +117,7 @@ def build_dataframe(raw_data, city, postal):
     return df
 
 
-def clean_data(df):
+def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # Convert Date to datetime
     df["Date"] = pd.to_datetime(df["Date"])
     logger.debug("[CLEAN] Converted 'Date' to datetime")
@@ -131,7 +145,7 @@ def clean_data(df):
     return df
 
 
-def save_cleaned_data(df):
+def save_cleaned_data(df: pd.DataFrame) -> bool:
     STAGING_DATA_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(TIMEZONE).strftime("%Y%m%d_%H%M%S")
 
@@ -140,8 +154,16 @@ def save_cleaned_data(df):
     try:
         df.to_csv(csv_path, index=False)
         logger.info(f"[SAVE] File written to: {csv_path}")
+        return True
+    except (PermissionError, FileNotFoundError, OSError) as e:
+        logger.error(f"[SAVE] File access error → {e}")
+        return False
+    except (ValueError, TypeError) as e:
+        logger.error(f"[SAVE] Data format issue → {e}")
+        return False
     except Exception as e:
-        logger.error(f"[SAVE] Failed to write CSV → {e}")
+        logger.error(f"[SAVE] Unexpected error → {e.__class__.__name__}: {e}")
+        return False
 
 
 def run() -> bool:
