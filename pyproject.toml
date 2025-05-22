@@ -1,10 +1,39 @@
+[tool.poetry]
+name = "skylytics"
+version = "1.0.0"
+description = "A data pipeline.."
+authors = ["Mert"]
+readme = "README.md"
+packages = [{ include = "src", from = "." }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "2.32.3"
+pandas = "2.2.3"
+numpy = "2.2.4"
+python-dotenv = "1.1.0"
+pyarrow = "19.0.1"
+SQLAlchemy = "2.0.40"
+psycopg2-binary = "2.9.10"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "8.3.5"
+pytest-cov = "6.1.1"
+pre-commit = "4.2.0"
+black = "25.1.0"
+ruff = "0.11.8"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.black]
 line-length = 100
-target-version = ['py310']
+target-version = ['py311']
 
 [tool.ruff]
-line-length = 88
-target-version = "py310"
-select = ["E", "F", "I"]  # I: import order
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I"]
 ignore = ["E501", "W291"]
 fixable = ["ALL"]
