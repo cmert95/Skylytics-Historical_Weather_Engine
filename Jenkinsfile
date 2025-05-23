@@ -1,16 +1,5 @@
-// CI pipeline for weather forecast ETL workflow, containerized with Docker Compose
-
 pipeline {
     agent any
-
-    // Select resampling interval (used in cleaning step)
-    parameters {
-        choice(
-            name: "INTERVAL",
-            choices: ["30min", "20min", "15min", "10min"],
-            description: "Resampling interval for the cleaned forecast data"
-        )
-    }
 
     // Run the pipeline every weekday at 08:30 (Mon–Fri only)
     triggers {
@@ -29,16 +18,15 @@ pipeline {
             steps {
                 sh '''
                     echo "🧹 Cleaning old data..."
-                    rm -f data/raw/*.json
-                    rm -f data/cleaned/*.csv
-                    rm -f data/cleaned/*.parquet
+                    rm -f data/sources/*.json
+                    rm -f data/staging/*.csv
+                    rm -f data/warehouse/*.csv
                     rm -f logs/*.log
-                    rm -f config/*.json
                 '''
             }
         }
 
-        // Build fresh Docker image
+        // Build fresh Docker image for Test
         stage("Build Test Container Image") {
             steps {
                 sh '''
@@ -48,10 +36,27 @@ pipeline {
             }
         }
 
-        //Check APIKEY
-        stage("Check API Key") {
+        // Build fresh Docker image for App
+        stage("Build App Container Image") {
             steps {
-                sh 'cat .env || echo ".env not found!"'
+                sh '''
+                    echo "🔧 Building app image..."
+                    docker compose build app
+                '''
+            }
+        }
+
+        //Check ENV file
+        stage("Check ENV file") {
+            steps {
+                sh '''
+                    if [ -f .env ]; then
+                        echo "📄 .env file found: Configuration values will be loaded from this file."
+                        cat .env
+                    else
+                        echo "⚠️  .env file not found. Continuing with default values."
+                    fi
+                '''
             }
         }
 
@@ -62,7 +67,6 @@ pipeline {
                     echo "File structure BEFORE pipeline"
                     ls -ltr data
                     ls -ltr logs
-                    ls -ltr config
                 '''
             }
         }
@@ -77,29 +81,11 @@ pipeline {
             }
         }
 
-        // Step 1
-        stage("Step 1: Get IP Info") {
+        // Run Main Pipeline
+        stage("Run Main Pipeline") {
             steps {
                 sh '''
-                    docker compose run ip
-                '''
-            }
-        }
-
-        // Step 2
-        stage("Step 2: Fetch Weather Data") {
-            steps {
-                sh '''
-                    docker compose run weather
-                '''
-            }
-        }
-
-        // Step 3
-        stage("Step 3: Clean Forecast Data") {
-            steps {
-                sh '''
-                    docker compose run cleaning
+                    docker compose run app
                 '''
             }
         }
@@ -111,7 +97,6 @@ pipeline {
                     echo "File structure AFTER pipeline"
                     ls -ltr data
                     ls -ltr logs
-                    ls -ltr config
                 '''
             }
         }
