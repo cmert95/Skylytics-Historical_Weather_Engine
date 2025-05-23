@@ -11,7 +11,8 @@ x-defaults: &step_defaults
   build: .
   tty: true
   env_file:
-    - .env
+      - path: .env
+        required: false
   volumes:
     - ./data:/app/data
     - ./logs:/app/logs

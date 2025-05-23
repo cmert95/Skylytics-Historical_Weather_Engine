@@ -11,7 +11,6 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock* ./
 COPY src ./src
-COPY .env .env
 COPY tests ./tests
 COPY config ./config
 
