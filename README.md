@@ -1,33 +1,73 @@
-# Modular Automated ETL Pipeline
-⛅ *Powered by weather forecast data*
+# 🌦️ Skylytics – AI Forecasts vs Reality
+📍 *Building a localized air-weather dataset and benchmarking ML/DL models against real-world forecasts*
 
-This is a fully modular and automated ETL pipeline designed to collect, clean, and store weather forecast data based on the user's IP location. The system is built with Dockerized steps and is fully integrated into a Jenkins CI workflow, including unit testing, test coverage tracking, and ready for future improvements.
+This project focuses on generating a localized, time-series dataset of historical weather data for a specific region, and using it to explore the predictive capabilities of modern machine learning and deep learning models.
 
+Along the way, the project serves as a complete data engineering + modeling workflow:
+- 🔁 Full ETL pipeline for 10+ years of localized weather data
+- 🔮 Daily predictions with ML/DL models
+- ⚖️ Accuracy comparisons against real weather forecast services
+- 📊 Visualization of prediction errors, model drift, and performance patterns
 
-## 🪄 Technologies and Tools Used
+Ultimately, this project seeks to answer:
+> “How close can open-source ML models get to the accuracy of professional forecasting systems?”
 
-- **Python**: `requests`, `pandas`, `pytest`, `logging`
-- **Docker**: Containerization of each ETL and testing step
-- **Docker Compose**: For all services and test environments
-- **Jenkins**: CI pipeline with daily schedule, test runner, logging, and coverage
-- **GitHub**: Version control and CI integration with Jenkins
-- **Pre-commit**: `black` and `ruff` for formatting and linting
-- **pytest + coverage**: Unit + edge-case testing with real-time coverage stats
-- **Makefile**: Provides simplified commands to run ETL steps, tests, and formatting
-- **APIs**: IP and weather data source
+## 📌 Project Highlights
 
+### Phase 1: Infrastructure & ETL Pipeline — ✅ Completed
 
-## ✅ Test Coverage
-
-![coverage](https://img.shields.io/badge/coverage-75%25-brightgreen)
-- Test coverage is measured using `pytest` and `pytest-cov`.
-- Run `make testcov` to see a detailed coverage report in the terminal.
+| Status | Task                                                                 |
+|--------|----------------------------------------------------------------------|
+| ✅     | Established a clean project structure with automated code formatting and linting. |
+| ✅     | Designed and implemented modular ETL stages (`location` → `data` → `data cleaning`). |
+| ✅     | Implemented centralized logging and error handling. |
+| ✅     | Wrote unit tests for each module, with test coverage tracking. |
+| ✅     | Externalized configuration via `settings.yaml`, with optional overrides from `.env` files.|
+| ✅     | Fully containerized all components using Docker and Docker Compose. |
+| ✅     | Integrated Jenkins for automated ETL runs, testing, and logging. |
 
 ---
 
-## 📦 Makefile Commands
+### Phase 2: Intelligence & Model Evaluation — 🟡 In Progress
 
-You can use `make` commands to run pipeline steps, clean files, run tests, and format code.
+| Status | Task                                                                 |
+|--------|----------------------------------------------------------------------|
+| 🟡     | Generating custom input datasets for each model architecture. |
+| 🟡     | Developing forecasting models using SARIMAX and Darts LSTM. |
+| 🟡     | Comparing model predictions to actual outcomes using MAE and RMSE. |
+---
+
+### Phase 3: Expansion & Insight Delivery — 🔜 Upcoming
+
+| Status | Task                                                                 |
+|--------|----------------------------------------------------------------------|
+| 🔜     | Exporting outputs to PostgreSQL for downstream analytics. |
+| 🔜     | Dynamically integrating multi-city and date selection into Jenkins workflows. |
+| 🔜     | Building interactive dashboards with Power BI or Tableau. |
+
+
+---
+
+
+## 🔧 Tech Stack
+
+| Category             | Tools & Libraries                   |
+|----------------------|-------------------------------------|
+| Language             | Python                              |
+| Dependency Mgmt      | Poetry (`pyproject.toml`)           |
+| Containers           | Docker, Docker Compose              |
+| CI/CD                | Jenkins, GitHub                     |
+| Testing              | Pytest, pytest-cov                  |
+| Code Quality         | Ruff, Black                         |
+| Dev Workflow         | Makefile, Pre-commit                |
+| Config Management    | `settings.yaml`, `.env`             |
+| API Sources          | IP Geolocation API, Open-Meteo      |
+---
+
+
+### 📦 How to Run
+
+You can use `make` commands to run the entire ETL pipeline, individual processing steps, testing, code formatting, and environment cleanup.
 
 To see all available commands:
 
@@ -35,41 +75,18 @@ To see all available commands:
 make help
 ```
 
-## ⛓️ Running Locally (ETL + Tests)
+### The `Jenkinsfile`:
 
-If you don't want to use the Makefile, you can still run each step manually using Docker Compose:
-
-```bash
-# Step-by-step ETL
-docker compose run --rm ip
-docker compose run --rm weather
-docker compose run --rm -e INTERVAL=30min cleaning
-
-# Run all tests with coverage
-docker compose run --rm test
-```
----
-> 📝 Make sure `.env` file exists with your `API_KEY`.
-
-## 🤵🏻 Jenkins Pipeline
-
-The `Jenkinsfile` includes:
-
-- Cleanup of old logs and data
-- Environment file checks
-- Test container image build
-- Full ETL pipeline run
-- Unit tests with coverage
-- Dynamic parameter injection
-- Pre/post directory check
-- Scheduled daily execution
+- Cleans old data and logs
+- Builds fresh Docker images for app and tests
+- Runs unit tests with coverage
+- Validates .env file or falls back to defaults
+- Checks file structure before & after run
+- Executes full ETL pipeline
+- Prints build metadata (time, ID, job info)
+- Archives all data/ and logs/ outputs
 
 ---
 
-### 🧳  Planned or In Progress
 
-1. **Automated data delivery** to a PostgreSQL database
-2. **Power BI** or **Tableau** dashboards
-
----
-I built this project to show how I like to build things.
+> Created and maintained by Mert, reflecting my approach to modular design, code quality, and CI/CD best practices.
