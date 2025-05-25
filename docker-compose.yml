@@ -1,57 +1,71 @@
-# Each service represents a step in the ETL pipeline:
-# - app: runs the entire pipeline defined in main.py
-# - test: executes unit tests using pytest to validate core modules
-# You can also run each step of the pipeline individually:
-# - location_resolver: resolves location information (city, postal code) from IP
-# - weather_data_fetcher: fetches historical weather data from an external API
-# - data_cleaner: processes and cleans the fetched weather data
-
-
 x-defaults: &step_defaults
-  build: .
   tty: true
   env_file:
-      - path: .env
-        required: false
+    - path: .env
+      required: false
   volumes:
     - ./data:/app/data
     - ./logs:/app/logs
     - ./config:/app/config
 
 services:
-  # Runs the full ETL pipeline from main.py
+  # ---------------------------------------------------
+  # app: Runs the full ETL pipeline (main entrypoint)
+  # ---------------------------------------------------
   app:
     <<: *step_defaults
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
     container_name: skylytics_app
     command: "python src/main.py"
 
-  # Runs all unit tests with pytest
+  # ---------------------------------------------------
+  # test: Runs all unit tests using pytest
+  # ---------------------------------------------------
   test:
     <<: *step_defaults
+    build:
+      context: .
+      dockerfile: docker/test.Dockerfile
     container_name: skylytics_test
     command: "poetry run pytest tests/"
     volumes:
       - .:/app
-      - ./config:/app/config
 
-  # Resolves geolocation info from IP (e.g. city, postal code)
+  # ---------------------------------------------------
+  # location_resolver: Resolves city, region from IP
+  # ---------------------------------------------------
   location_resolver:
     <<: *step_defaults
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
     container_name: skylytics_step_location_resolver
     command: "python src/location_resolver.py"
 
-  # Fetches historical weather data from external API
+  # ---------------------------------------------------
+  # weather_data_fetcher: Pulls weather data from API
+  # ---------------------------------------------------
   weather_data_fetcher:
     <<: *step_defaults
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
     container_name: skylytics_step_weather_data_fetcher
     command: "python src/weather_data_fetcher.py"
     depends_on:
-      - location_resolver # reminder: add healthcheck if flaky
+      - location_resolver
 
-  # Cleans and transforms raw weather data
+  # ---------------------------------------------------
+  # data_cleaner: Cleans and transforms weather data
+  # ---------------------------------------------------
   data_cleaner:
     <<: *step_defaults
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
     container_name: skylytics_step_data_cleaner
     command: "python src/data_cleaner.py"
     depends_on:
-      - weather_data_fetcher # reminder: add healthcheck if flaky
+      - weather_data_fetcher
