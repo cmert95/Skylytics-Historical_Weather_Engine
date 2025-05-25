@@ -19,4 +19,4 @@ RUN poetry config virtualenvs.create false && \
 
 RUN mkdir -p logs data
 
-CMD ["python", "src/main.py"]
+CMD ["poetry", "run", "pytest", "tests/"]
