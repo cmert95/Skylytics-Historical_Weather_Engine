@@ -85,9 +85,8 @@ def read_location_file(path: Union[str, Path]) -> Optional[LocationDict]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (PermissionError, FileNotFoundError):
-        logger.warning(f"[CONFIG] Failed to read location file → {path}")
-        # TODO: Change this message to "Location file not found" after updating the test
+    except (PermissionError, FileNotFoundError) as e:
+        logger.warning(f"[CONFIG] Location file not found → {e}")
         return None
     except json.JSONDecodeError as e:
         logger.error(f"[CONFIG] Invalid JSON format in location file → {e}")
@@ -106,10 +105,11 @@ def resolve_location() -> Optional[LocationDict]:
     lat = loc.get("latitude")
     lon = loc.get("longitude")
     postal = loc.get("postal")
+    city = loc.get("city", "Unknown")
 
-    if lat and lon and postal:
+    if lat and lon and postal and city:
         logger.info("[CONFIG] Location loaded from settings.yaml")
-        return {"latitude": lat, "longitude": lon, "postal": postal}
+        return {"latitude": lat, "longitude": lon, "postal": postal, "city": city}
 
     # 2. Try from cached file
     if Path(SYSTEM_LOCATION_PATH).exists():
