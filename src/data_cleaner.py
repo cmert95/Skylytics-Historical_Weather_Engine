@@ -124,22 +124,23 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # Filter out extreme values
     original_len = len(df)
-    df = df[(df["Temp_Max_C"] <= 60) & (df["Temp_Min_C"] >= -30) & (df["WindSpeed_Max_kph"] < 200)]
+    df = df[
+        (df["Temp_Max_C"] <= 60) & (df["Temp_Min_C"] >= -30) & (df["WindSpeed_Max_kph"] < 200)
+    ].copy()
     logger.info(f"[CLEAN] Removed {original_len - len(df)} rows with extreme values")
 
     # Interpolate numeric columns
-    numeric_cols = df.select_dtypes(include="number").columns
+    numeric_cols = df.select_dtypes(include=["number"]).columns
     df[numeric_cols] = df[numeric_cols].interpolate(method="linear").round(1)
     logger.debug(f"[CLEAN] Interpolated numeric columns: {list(numeric_cols)}")
 
     # Fill non-numeric nulls
-    non_numeric_cols = df.select_dtypes(exclude="number").columns
+    non_numeric_cols = df.columns.difference(numeric_cols.union(["Date"]))
     df[non_numeric_cols] = df[non_numeric_cols].ffill()
     logger.debug(f"[CLEAN] Forward-filled non-numeric columns: {list(non_numeric_cols)}")
 
     # Sort and reset index
-    df.sort_values("Date", inplace=True)
-    df.reset_index(drop=True, inplace=True)
+    df = df.sort_values("Date").reset_index(drop=True)
     logger.info(f"[CLEAN] DataFrame ready. Final row count: {len(df)}")
 
     return df
