@@ -19,12 +19,13 @@ Ultimately, this project seeks to answer:
 | Status | Task                                                                 |
 |--------|----------------------------------------------------------------------|
 | ✅     | Established a clean project structure with automated code formatting and linting. |
-| ✅     | Designed and implemented modular ETL stages (`location` → `data` → `data cleaning`). |
+| ✅     | Designed and implemented modular data processing stages.|
 | ✅     | Implemented centralized logging and error handling. |
-| ✅     | Wrote unit tests for each module, with test coverage tracking. |
 | ✅     | Externalized configuration via `settings.yaml`, with optional overrides from `.env` files.|
-| ✅     | Fully containerized all components using Docker and Docker Compose. |
-| ✅     | Integrated Jenkins for automated ETL runs, testing, and logging. |
+| ✅     | Fully containerized all components using Docker and Docker Compose.  |
+| ✅     | Integrated Jenkins for automated ETL runs, testing, and logging.   |
+| ✅     | Added a Makefile with multi-purpose project commands." |
+| 🟡     | Writing tests for all project modules.     |
 
 ---
 
@@ -33,8 +34,8 @@ Ultimately, this project seeks to answer:
 | Status | Task                                                                 |
 |--------|----------------------------------------------------------------------|
 | 🟡     | Generating custom input datasets for each model architecture. |
-| 🟡     | Developing forecasting models using SARIMAX and Darts LSTM. |
-| 🟡     | Comparing model predictions to actual outcomes using MAE and RMSE. |
+| 🔜     | Developing forecasting models using SARIMAX and Darts LSTM. |
+| 🔜     | Comparing model predictions to actual outcomes using MAE and RMSE. |
 ---
 
 ### Phase 3: Expansion & Insight Delivery — 🔜 Upcoming
@@ -42,11 +43,16 @@ Ultimately, this project seeks to answer:
 | Status | Task                                                                 |
 |--------|----------------------------------------------------------------------|
 | 🔜     | Exporting outputs to PostgreSQL for downstream analytics. |
-| 🔜     | Dynamically integrating multi-city and date selection into Jenkins workflows. |
 | 🔜     | Building interactive dashboards with Power BI or Tableau. |
 
 
----
+## 📦 How to `Run`
+
+To list available commands:
+
+```bash
+make help
+```
 
 
 ## 🔧 Tech Stack
@@ -57,25 +63,15 @@ Ultimately, this project seeks to answer:
 | Dependency Mgmt      | Poetry (`pyproject.toml`)           |
 | Containers           | Docker, Docker Compose              |
 | CI/CD                | Jenkins, GitHub                     |
-| Testing              | Pytest, pytest-cov                  |
+| Testing Types        | Unit Testing, Integration Testing   |
+| Testing Tools        | Pytest, pytest-cov, unittest.mock   |
 | Code Quality         | Ruff, Black                         |
 | Dev Workflow         | Makefile, Pre-commit                |
 | Config Management    | `settings.yaml`, `.env`             |
 | API Sources          | IP Geolocation API, Open-Meteo      |
----
 
 
-### 📦 How to Run
-
-You can use `make` commands to run the entire ETL pipeline, individual processing steps, testing, code formatting, and environment cleanup.
-
-To see all available commands:
-
-```bash
-make help
-```
-
-### The `Jenkinsfile`:
+## The `Jenkinsfile`:
 
 - Cleans old data and logs
 - Builds fresh Docker images for app and tests
@@ -87,6 +83,5 @@ make help
 - Archives all data/ and logs/ outputs
 
 ---
-
 
 > Created and maintained by Mert, reflecting my approach to modular design, code quality, and CI/CD best practices.
