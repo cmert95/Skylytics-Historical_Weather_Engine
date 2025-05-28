@@ -26,11 +26,11 @@ pipeline {
             }
         }
 
-        // Build fresh Docker image for Test
+        // Build fresh Docker image for all tests
         stage("Build Test Container Image") {
             steps {
                 sh '''
-                    echo "🔧 Building test image..."
+                    echo "🔧 Building test images..."
                     docker compose build test
                 '''
             }
@@ -71,12 +71,25 @@ pipeline {
             }
         }
 
-        // Pytest
-        stage("Run Pytest") {
+        // Run Unit Tests
+        stage("Run Unit Tests") {
             steps {
                 sh '''
-                    echo "Running unit tests with pytest..."
-                    docker compose run --rm test
+                    echo "🧪 Running UNIT tests..."
+                    docker compose run --rm -e TEST_TYPE=unit test
+                '''
+            }
+        }
+
+        // Run Integration tests
+        stage("Run Integration Tests") {
+            when {
+                expression { currentBuild.currentResult == 'SUCCESS' }
+            }
+            steps {
+                sh '''
+                    echo "🧪 Running INTEGRATION tests..."
+                    docker compose run --rm -e TEST_TYPE=integration test
                 '''
             }
         }
