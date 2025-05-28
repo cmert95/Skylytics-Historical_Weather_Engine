@@ -21,7 +21,9 @@ services:
     command: "python src/main.py"
 
   # ---------------------------------------------------
-  # test: Runs all unit tests using pytest
+  # test: Runs unit/integration tests using pytest
+  # Can be filtered using TEST_TYPE
+  # Default test type: Unit
   # ---------------------------------------------------
   test:
     <<: *step_defaults
@@ -29,7 +31,10 @@ services:
       context: .
       dockerfile: docker/test.Dockerfile
     container_name: skylytics_test
-    command: "poetry run pytest tests/"
+    command: >
+      sh -c "poetry run pytest tests/${TEST_TYPE:-unit}"
+    environment:
+      - TEST_TYPE=unit
     volumes:
       - .:/app
 
