@@ -25,11 +25,19 @@ runall: ## Run the full ETL pipeline
 # ---------------------------------------------------
 # Testing
 # ---------------------------------------------------
-test: ## Run all tests without coverage
-	@echo "🧪 Running tests (without coverage)..."
+test: ## Run all tests (unit + integration, local)
+	@echo "🧪 Running ALL tests locally..."
 	poetry run pytest
 
-testcov: ## Run all tests with coverage
+test-unit: ## Run only unit tests (via Docker)
+	@echo "🧪 Running UNIT tests in Docker..."
+	docker compose run --rm -e TEST_TYPE=unit test
+
+test-integration: ## Run only integration tests (via Docker)
+	@echo "🧪 Running INTEGRATION tests in Docker..."
+	docker compose run --rm -e TEST_TYPE=integration test
+
+testcov: ## Run all tests with coverage (unit + integration)
 	@echo "🧪 Running tests with coverage..."
 	docker compose run --rm test poetry run pytest --cov=src --cov-report=term-missing
 
