@@ -14,7 +14,7 @@ COPY src ./src
 COPY config ./config
 
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-root
+    poetry install --without dev --no-root
 
 RUN mkdir -p logs data
 
