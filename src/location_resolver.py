@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
-from typing import Optional, TypedDict, Union
+from typing import Any, Optional, TypedDict, Union
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from src.config import SETTINGS, SYSTEM_LOCATION_PATH
 from src.logger import setup_logger
@@ -17,13 +19,37 @@ class LocationDict(TypedDict):
     longitude: float
 
 
+def get_with_retry(
+    url: str, retries: int = 3, backoff_factor: float = 0.5, timeout: int = 10
+) -> requests.Response | None:
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    try:
+        response = session.get(url, timeout=timeout)
+        response.raise_for_status()
+        return response
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[FETCH] Request to {url} failed: {e}")
+        return None
+
+
 def fetch_location_from_ip() -> Optional[LocationDict]:
     url: str = "https://ipinfo.io/json"
     logger.info("[FETCH] Fetching location from IPinfo API")
     try:
-        response: requests.Response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data: dict = response.json()
+        response: Optional[requests.Response] = get_with_retry(url)
+        if response is None:
+            return None
+        data: dict[str, Any] = response.json()
     except (
         requests.exceptions.Timeout,
         requests.exceptions.HTTPError,
