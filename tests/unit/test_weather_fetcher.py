@@ -2,9 +2,43 @@ import json
 from datetime import date, timedelta
 from unittest.mock import Mock, mock_open, patch
 
+import pytest
 import requests
+from requests.exceptions import HTTPError, Timeout
 
 from src import weather_data_fetcher as wdf
+
+
+class TestGetWithRetry:
+    @patch("src.weather_data_fetcher.requests.Session.get")
+    def test_successful_get(self, mock_get):
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        result = wdf.get_with_retry("http://example.com", params={})
+        assert result == mock_response
+        assert mock_get.call_count == 1
+
+    @patch("src.weather_data_fetcher.requests.Session.get")
+    def test_http_error_raises(self, mock_get):
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("Bad request")
+        mock_get.return_value = mock_response
+
+        with pytest.raises(HTTPError):
+            wdf.get_with_retry("http://example.com", params={}, retries=1)
+
+        assert mock_get.call_count == 1
+
+    @patch("src.weather_data_fetcher.requests.Session.get")
+    def test_exceeds_retries(self, mock_get):
+        mock_get.side_effect = Timeout("Still timing out")
+
+        with pytest.raises(Timeout):
+            wdf.get_with_retry("http://example.com", params={}, retries=2, backoff_factor=0)
+
+        assert mock_get.call_count == 1
 
 
 class TestGetLocationInfo:
@@ -42,7 +76,7 @@ class TestGetLocationInfo:
 
 
 class TestGetWeatherData:
-    @patch("src.weather_data_fetcher.requests.get")
+    @patch("src.weather_data_fetcher.requests.Session.get")
     def test_successful_fetch(self, mock_get, caplog):
         mock_resp = Mock()
         mock_resp.raise_for_status.return_value = None
@@ -53,7 +87,7 @@ class TestGetWeatherData:
         assert data == {"daily": {"temperature_2m_max": [20]}}
         assert "[FETCH] Data fetched successfully" in caplog.text
 
-    @patch("src.weather_data_fetcher.requests.get")
+    @patch("src.weather_data_fetcher.requests.Session.get")
     def test_http_error(self, mock_get, caplog):
         mock_resp = Mock()
         mock_resp.raise_for_status.side_effect = requests.exceptions.HTTPError(
@@ -65,7 +99,7 @@ class TestGetWeatherData:
         assert data is None
         assert "[FETCH] HTTP error" in caplog.text
 
-    @patch("src.weather_data_fetcher.requests.get")
+    @patch("src.weather_data_fetcher.requests.Session.get")
     def test_timeout_error(self, mock_get, caplog):
         mock_get.side_effect = requests.exceptions.Timeout("timeout")
         data = wdf.get_weather_data(0, 0, "2023-01-01", "2023-01-05")
@@ -93,7 +127,7 @@ class TestSaveToFile:
 
     @patch("json.dump")
     @patch("builtins.open", new_callable=mock_open)
-    def test_serialization_error(self, mock_file, mock_json_dump, caplog):
+    def test_serialization_error(self, mock_json_dump, mock_file, caplog):
         mock_json_dump.side_effect = TypeError("bad type")
         result = wdf.save_to_file({"bad": set()}, "dummy.json")
         assert result is False
