@@ -2,12 +2,46 @@ import json
 from unittest.mock import Mock, mock_open, patch
 
 import requests
+from requests.exceptions import HTTPError, Timeout
 
 from src import location_resolver as lr
 
 
+class TestGetWithRetry:
+    @patch("src.location_resolver.requests.Session.get")
+    def test_successful_get(self, mock_get):
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        result = lr.get_with_retry("http://example.com")
+
+        assert result == mock_response
+        assert mock_get.call_count == 1
+
+    @patch("src.location_resolver.requests.Session.get")
+    def test_http_error_returns_none(self, mock_get):
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("Bad request")
+        mock_get.return_value = mock_response
+
+        result = lr.get_with_retry("http://example.com", retries=1)
+
+        assert result is None
+        assert mock_get.call_count == 1
+
+    @patch("src.location_resolver.requests.Session.get")
+    def test_timeout_returns_none(self, mock_get):
+        mock_get.side_effect = Timeout("Connection timed out")
+
+        result = lr.get_with_retry("http://example.com", retries=3, backoff_factor=0)
+
+        assert result is None
+        assert mock_get.call_count == 1
+
+
 class TestFetchLocationFromIP:
-    @patch("src.location_resolver.requests.get")
+    @patch("src.location_resolver.requests.Session.get")
     def test_successful_fetch(self, mock_get, caplog):
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -27,14 +61,14 @@ class TestFetchLocationFromIP:
         }
         assert "[FETCH] Location fetched from IP" in caplog.text
 
-    @patch("src.location_resolver.requests.get")
+    @patch("src.location_resolver.requests.Session.get")
     def test_fetch_timeout(self, mock_get, caplog):
         mock_get.side_effect = requests.exceptions.Timeout
         result = lr.fetch_location_from_ip()
         assert result is None
-        assert "[FETCH] API request failed" in caplog.text
+        assert "Request to https://ipinfo.io/json failed" in caplog.text
 
-    @patch("src.location_resolver.requests.get")
+    @patch("src.location_resolver.requests.Session.get")
     def test_incomplete_response(self, mock_get, caplog):
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -48,7 +82,7 @@ class TestFetchLocationFromIP:
         assert result is None
         assert "[FETCH] Incomplete location info from IP API" in caplog.text
 
-    @patch("src.location_resolver.requests.get")
+    @patch("src.location_resolver.requests.Session.get")
     def test_malformed_coordinates(self, mock_get, caplog):
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -209,7 +243,7 @@ class TestResolveLocation:
     @patch("src.location_resolver.SETTINGS", {"location": {}})
     @patch("src.location_resolver.Path.exists", return_value=False)
     @patch("src.location_resolver.fetch_location_from_ip", return_value=None)
-    def test_resolve_returns_none_if_all_fail(self, mock_fetch, mock_exists, caplog):
+    def test_resolve_returns_none_if_all_fail(self, mock_exists, mock_fetch, caplog):
         result = lr.resolve_location()
         assert result is None
         assert "[CONFIG] No config or cache found. Falling back to IP-based location" in caplog.text
