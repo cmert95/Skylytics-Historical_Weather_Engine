@@ -25,9 +25,8 @@ Ultimately, this project seeks to answer:
 | ✅     | Fully containerized all components using Docker and Docker Compose.  |
 | ✅     | Integrated Jenkins for automated ETL runs, testing, and logging.   |
 | ✅     | Added a Makefile with multi-purpose project commands." |
-| 🟡     | Writing tests for all project modules.     |
+| 🟡     | Writing tests for all project modules. [▶ View Latest Test Results & Coverage](images/tests_passed.png)     |
 
----
 
 ### Phase 2: Intelligence & Model Evaluation — 🟡 In Progress
 
@@ -36,7 +35,6 @@ Ultimately, this project seeks to answer:
 | 🟡     | Generating custom input datasets for each model architecture. |
 | 🔜     | Developing forecasting models using SARIMAX and Darts LSTM. |
 | 🔜     | Comparing model predictions to actual outcomes using MAE and RMSE. |
----
 
 ### Phase 3: Expansion & Insight Delivery — 🔜 Upcoming
 
@@ -44,7 +42,6 @@ Ultimately, this project seeks to answer:
 |--------|----------------------------------------------------------------------|
 | 🔜     | Exporting outputs to PostgreSQL for downstream analytics. |
 | 🔜     | Building interactive dashboards with Power BI or Tableau. |
-
 
 ## 📦 How to `Run`
 
@@ -71,17 +68,23 @@ make help
 | API Sources          | IP Geolocation API, Open-Meteo      |
 
 
-## The `Jenkinsfile`:
+### The Jenkinsfile:
+
+-  [▶ View Jenkins Pipeline Console](images/jenkins_console.png)
 
 - Cleans old data and logs
-- Builds fresh Docker images for app and tests
-- Runs unit tests with coverage
-- Validates .env file or falls back to defaults
+- Checks for .env file presence and falls back to defaults if missing
 - Checks file structure before & after run
+
+- Builds fresh Docker images for the app
+- Builds fresh Docker images for tests
+- Runs unit tests
+- Runs integration tests
+
 - Executes full ETL pipeline
+
+- Archives cleaned data and logs (e.g. data/staging/*.csv, logs/*.log)
 - Prints build metadata (time, ID, job info)
-- Archives all data/ and logs/ outputs
 
 ---
-
 > Created and maintained by Mert, reflecting my approach to modular design, code quality, and CI/CD best practices.
