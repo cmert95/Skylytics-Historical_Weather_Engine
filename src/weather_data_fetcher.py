@@ -3,6 +3,8 @@ from datetime import date, datetime, timedelta
 from typing import Any, Optional, Tuple
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from src.config import DAYS_TO_PULL, RAW_DATA_DIR, SYSTEM_LOCATION_PATH, TIMEZONE
 from src.logger import setup_logger
@@ -10,6 +12,29 @@ from src.logger import setup_logger
 logger = setup_logger(__name__, log_name="weather_openmeteo_logs")
 
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_with_retry(
+    url: str,
+    params: dict[str, Any],
+    retries: int = 3,
+    backoff_factor: float = 0.5,
+    timeout: int = 10,
+) -> requests.Response:
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    response = session.get(url, params=params, timeout=timeout)
+    response.raise_for_status()
+    return response
 
 
 def get_location_info(
@@ -73,7 +98,7 @@ def get_weather_data(
         f"[FETCH] Requesting weather data: {start_date} → {end_date} | lat:{lat}, lon:{lon}"
     )
     try:
-        response: requests.Response = requests.get(url, params=params, timeout=10)
+        response: requests.Response = get_with_retry(url, params)
         response.raise_for_status()
         logger.info("[FETCH] Data fetched successfully from Open-Meteo API")
         return response.json()
