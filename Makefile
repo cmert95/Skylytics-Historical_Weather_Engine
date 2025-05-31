@@ -1,7 +1,7 @@
 .PHONY: \
   help \
-  runall \
-  test testcov \
+  run \
+  test test-unit test-integration testcov coverage-html \
   ip weather cleaning \
   build-app build-test \
   cleanall cleantemp cleandata cleanlogs \
@@ -13,12 +13,12 @@
 # ---------------------------------------------------
 help:  ## Show available commands
 	@echo "🛠️  Available commands:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
+	@awk -F':.*?## ' '/^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' Makefile
 
 # ---------------------------------------------------
 # Full pipeline
 # ---------------------------------------------------
-runall: ## Run the full ETL pipeline
+run: ## Run the full ETL pipeline
 	@echo "🚀 Running full ETL pipeline..."
 	docker compose run --rm app
 
@@ -43,6 +43,7 @@ testcov: ## Run all tests with coverage (unit + integration)
 
 coverage-html: ## Generate test coverage report in HTML format
 	@echo "🧪 Generating coverage report in HTML format..."
+	mkdir -p htmlcov
 	docker compose run --rm test poetry run pytest --cov=src --cov-report=html
 	@echo "📂 HTML report generated at: htmlcov/index.html"
 
@@ -77,23 +78,23 @@ build-test: ## Rebuild test image only
 # ---------------------------------------------------
 cleanall: ## Remove raw/cleaned data, logs and config files
 	@echo "🧹 Cleaning all data, logs, and config files..."
-	rm -f data/sources/*.json
-	rm -f data/staging/*.csv
-	rm -f logs/*.log
+	find data/sources -name '*.json' -delete
+	find data/staging -name '*.csv' -delete
+	find logs -name '*.log' -delete
 
 cleantemp: ## Remove raw data and logs
 	@echo "🗑️  Cleaning raw data and logs..."
-	rm -f data/sources/*.json
-	rm -f logs/*.log
+	find data/sources -name '*.json' -delete
+	find logs -name '*.log' -delete
 
 cleandata: ## Remove data files
 	@echo "📦 Cleaning raw and cleaned data..."
-	rm -f data/sources/*.json
-	rm -f data/staging/*.csv
+	find data/sources -name '*.json' -delete
+	find data/staging -name '*.csv' -delete
 
 cleanlogs: ## Remove log files
 	@echo "📄 Cleaning logs..."
-	rm -f logs/*.log
+	find logs -name '*.log' -delete
 
 # ---------------------------------------------------
 # Code Quality
